@@ -1,0 +1,6 @@
+{
+  "name": "OmniFlow AI - Inbox Omnicanal & Demos de Ventas WhatsApp",
+  "description": "Centraliza y automatiza WhatsApp con Green-API (+51 986 150 562), Messenger, Instagram con IA Gemini y CRM integrado para Demos Odontología (S/ 490) y Belleza (S/ 890).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
