@@ -588,6 +588,9 @@ async function processDemoMessage(phone: string, senderName: string, text: strin
     session.currentDemo = 'menu';
     session.dentalStep = undefined;
     session.selectedTreatment = undefined;
+    session.beautyService = undefined;
+    session.beautyClientName = undefined;
+    session.beautyDateTime = undefined;
     session.isBookingCompleted = false;
     session.history = [];
 
@@ -655,21 +658,30 @@ Por favor, envíame tu *Nombre completo* y la *Fecha/Hora* en la que deseas veni
       patientName = lines[0].trim() || patientName;
       dateTimeRequested = lines.slice(1).join(" ").trim() || dateTimeRequested;
     } else {
-      const words = rawInfo.split(" ");
-      if (words.length >= 3) {
-        patientName = words.slice(0, 2).join(" ");
-        dateTimeRequested = words.slice(2).join(" ");
-      } else if (words.length >= 1) {
-        if (rawInfo.toLowerCase().includes("am") || rawInfo.toLowerCase().includes("pm") || rawInfo.includes(":") || rawInfo.toLowerCase().includes("mañana") || rawInfo.toLowerCase().includes("tarde")) {
-          dateTimeRequested = rawInfo;
-        } else {
-          patientName = rawInfo;
+      const nameMatch = rawInfo.match(/(?:mi\s+nombre\s+es|me\s+llamo|soy)\s+([A-Za-zÁÉÍÓÚáéíóúñ]+(?:\s+[A-Za-zÁÉÍÓÚáéíóúñ]+){0,3})/i);
+      if (nameMatch && nameMatch[1]) {
+        patientName = nameMatch[1].trim();
+        dateTimeRequested = rawInfo.replace(/(?:mi\s+nombre\s+es|me\s+llamo|soy)\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]+[,.\n]?/i, "").trim() || dateTimeRequested;
+      } else {
+        const words = rawInfo.split(" ");
+        if (words.length >= 3) {
+          patientName = words.slice(0, 2).join(" ");
+          dateTimeRequested = words.slice(2).join(" ");
+        } else if (words.length >= 1) {
+          if (rawInfo.toLowerCase().includes("am") || rawInfo.toLowerCase().includes("pm") || rawInfo.includes(":") || rawInfo.toLowerCase().includes("mañana") || rawInfo.toLowerCase().includes("tarde")) {
+            dateTimeRequested = rawInfo;
+          } else {
+            patientName = rawInfo;
+          }
         }
       }
     }
 
-    // Capitalize patient name cleanly
-    patientName = patientName.replace(/^(mi nombre es|me llamo|soy)\s+/i, "").trim();
+    // Clean conversational fillers
+    patientName = patientName.replace(/^(mi nombre es|me llamo|soy)\s+/i, "").replace(/\s+(la|el|para|de|y)$/i, "").trim();
+    dateTimeRequested = dateTimeRequested
+      .replace(/^(?:la\s+cita\s+la\s+deseo\s+(?:para\s+el|para)?|la\s+deseo\s+(?:para\s+el|para)?|deseo\s+(?:para\s+el|para)?|quiero\s+(?:para\s+el|para)?|seria\s+(?:para\s+el|para)?|agendame\s+(?:para\s+el|para)?|para\s+el|para)\s+/i, "")
+      .trim() || "Fecha por coordinar";
 
     const newAppointment = {
       id: `dent_${Date.now()}`,
@@ -759,6 +771,16 @@ _O escribe *menu* para volver a la central de demostraciones._`;
         session.beautyPrice = 50;
       }
 
+      // Helper to clean common conversational fillers from date/time
+      const cleanDateString = (rawDate: string) => {
+        let res = rawDate
+          .replace(/^(?:mi\s+nombre\s+es|me\s+llamo|soy)\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]+[,.\n]?\s*/i, "")
+          .replace(/^(?:la\s+cita\s+la\s+deseo\s+(?:para\s+el|para)?|la\s+cita\s+para\s+el|la\s+cita\s+es\s+para\s+el|la\s+deseo\s+(?:para\s+el|para)?|deseo\s+(?:para\s+el|para)?|quiero\s+(?:para\s+el|para)?|seria\s+(?:para\s+el|para)?|agendame\s+(?:para\s+el|para)?|para\s+el|para)\s+/i, "")
+          .trim();
+        // Capitalize first letter
+        return res ? res.charAt(0).toUpperCase() + res.slice(1) : res;
+      };
+
       // Advanced multi-line / conversational Name extraction
       const lines = cleanText.split(/[\n,]+/).map(l => l.trim()).filter(Boolean);
       const isTimeWord = (t: string) => {
@@ -766,28 +788,28 @@ _O escribe *menu* para volver a la central de demostraciones._`;
         return l.includes("pm") || l.includes("am") || l.includes(":") || l.includes("mañana") || 
                l.includes("tarde") || l.includes("noche") || l.includes("lunes") || l.includes("martes") || 
                l.includes("miercoles") || l.includes("miércoles") || l.includes("jueves") || l.includes("viernes") || 
-               l.includes("sabado") || l.includes("sábado") || l.includes("domingo") || l.includes("para el");
+               l.includes("sabado") || l.includes("sábado") || l.includes("domingo") || l.includes("para el") ||
+               l.includes("la cita");
       };
 
-      const namePrefixMatch = cleanText.match(/(?:mi\s+nombre\s+es|me\s+llamo|soy)\s+([A-Za-zÁÉÍÓÚáéíóúñ\s]+)/i);
+      const namePrefixMatch = cleanText.match(/(?:mi\s+nombre\s+es|me\s+llamo|soy)\s+([A-Za-zÁÉÍÓÚáéíóúñ]+(?:\s+[A-Za-zÁÉÍÓÚáéíóúñ]+){0,3})/i);
       if (namePrefixMatch && namePrefixMatch[1].trim()) {
-        session.beautyClientName = namePrefixMatch[1].replace(/[,.\n].*$/, "").trim();
+        const extracted = namePrefixMatch[1].replace(/[,.\n].*$/, "").trim();
+        // Remove trailing filler words
+        session.beautyClientName = extracted.replace(/\s+(la|el|para|de|y)$/i, "").trim();
       } else if (lines.length >= 2 && !isTimeWord(lines[0]) && lines[0].split(" ").length <= 4) {
         // Line 1 is the name (e.g. "Karina linares"), Line 2 is the date/time
         session.beautyClientName = lines[0].trim();
-        session.beautyDateTime = lines.slice(1).join(" ").trim();
       } else if (!session.beautyClientName && cleanText.split(" ").length <= 3 && !isTimeWord(cleanText) && !lowerText.includes("pedicure") && !lowerText.includes("manicure") && !lowerText.includes("corte") && !lowerText.includes("alisado")) {
         session.beautyClientName = cleanText.trim();
       }
 
       // Date / Time extraction
       if (isTimeWord(lowerText)) {
-        if (!session.beautyDateTime) {
-          if (lines.length >= 2 && session.beautyClientName === lines[0]) {
-            session.beautyDateTime = lines.slice(1).join(" ").trim();
-          } else {
-            session.beautyDateTime = cleanText.replace(/^(mi nombre es|me llamo|soy)\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]+[,.\n]?/i, "").trim() || cleanText;
-          }
+        if (lines.length >= 2 && session.beautyClientName === lines[0]) {
+          session.beautyDateTime = cleanDateString(lines.slice(1).join(" ").trim());
+        } else {
+          session.beautyDateTime = cleanDateString(cleanText);
         }
       }
 
@@ -865,18 +887,19 @@ Mensaje actual de la clienta (${session.beautyClientName || session.name || "Cli
 
         // If we have both name (or phone) and date/time and service -> COMPLETE BOOKING!
         if (dateTime && (session.beautyClientName || cleanText.length > 5)) {
+          const finalCleanDateTime = cleanDateString(dateTime);
           detectedAppointment = {
             clientName: session.beautyClientName || (session.name !== 'Cliente' ? session.name : 'Salomé Linares'),
             service: service,
             amount: price,
-            dateTime: dateTime
+            dateTime: finalCleanDateTime
           };
           botReply = `¡Excelente, hermosa ${detectedAppointment.clientName}! 💖✨ Con mucho gusto he reservado tu espacio para consentirte.
 
 🌸 *Resumen de tu Cita:*
 👤 *Clienta:* ${detectedAppointment.clientName}
 💅 *Servicio:* ${service}
-📅 *Fecha y Hora:* ${dateTime}
+📅 *Fecha y Hora:* ${finalCleanDateTime}
 💰 *Total:* S/ ${price}
 
 ¡Te esperamos en *Glow Centro de Belleza* para dejarte radiante! 💅✨ Si necesitas algún cambio o consulta adicional, avísame con confianza. ¡Que tengas un maravilloso día! 🌸💖`;

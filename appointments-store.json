@@ -1,6 +1,16 @@
 {
   "dentalAppointments": [
     {
+      "id": "dent_1788312337386",
+      "registrationDate": "2/9, 01:25 a. m.",
+      "patientName": "Sebastian saturo",
+      "whatsapp": "+51925009051",
+      "treatment": "Evaluación Ortodoncia (S/ 150)",
+      "requestedDateTime": "Miercoles 10:am",
+      "status": "🟢 Nueva Cita",
+      "notes": "Registrado automáticamente desde Bot WhatsApp (+51 986 150 562)"
+    },
+    {
       "id": "dent_1788311656167",
       "registrationDate": "2/9, 01:14 a. m.",
       "patientName": "Salomé Linares",
@@ -82,6 +92,78 @@
     }
   ],
   "beautyAppointments": [
+    {
+      "id": "bt_1788316743573",
+      "date": "2/9, 02:39 a. m.",
+      "clientName": "fabiana barrientos",
+      "whatsapp": "+51999888777",
+      "service": "Manicure Acrílica",
+      "amount": 60,
+      "dateTimeRequested": "Jueves de esta semana a las 10 de la mañana",
+      "status": "Por Confirmar",
+      "stylist": "Mía Recepción IA",
+      "notes": "Agendado automáticamente por IA Mía (Plan PRO) vía WhatsApp"
+    },
+    {
+      "id": "bt_1788316731407",
+      "date": "2/9, 02:38 a. m.",
+      "clientName": "fabiana barrientos",
+      "whatsapp": "+51999888777",
+      "service": "Manicure Acrílica",
+      "amount": 60,
+      "dateTimeRequested": "la cita la deseo para el jueves de esta semana a las 10 de la mañana",
+      "status": "Por Confirmar",
+      "stylist": "Mía Recepción IA",
+      "notes": "Agendado automáticamente por IA Mía (Plan PRO) vía WhatsApp"
+    },
+    {
+      "id": "bt_1788316717343",
+      "date": "2/9, 02:38 a. m.",
+      "clientName": "fabiana barrientos",
+      "whatsapp": "+51999888777",
+      "service": "Manicure Acrílica",
+      "amount": 60,
+      "dateTimeRequested": "la cita la deseo para el jueves de esta semana a las 10 de la mañana",
+      "status": "Por Confirmar",
+      "stylist": "Mía Recepción IA",
+      "notes": "Agendado automáticamente por IA Mía (Plan PRO) vía WhatsApp"
+    },
+    {
+      "id": "bt_1788316701708",
+      "date": "2/9, 02:38 a. m.",
+      "clientName": "fabiana barrientos",
+      "whatsapp": "+51999888777",
+      "service": "Manicure Acrílica",
+      "amount": 60,
+      "dateTimeRequested": "la cita la deseo para el jueves de esta semana a las 10 de la mañana",
+      "status": "Por Confirmar",
+      "stylist": "Mía Recepción IA",
+      "notes": "Agendado automáticamente por IA Mía (Plan PRO) vía WhatsApp"
+    },
+    {
+      "id": "bt_1788316693488",
+      "date": "2/9, 02:38 a. m.",
+      "clientName": "fabiana barrientos",
+      "whatsapp": "+51999888777",
+      "service": "Manicure Acrílica",
+      "amount": 60,
+      "dateTimeRequested": "la cita la deseo para el jueves de esta semana a las 10 de la mañana",
+      "status": "Por Confirmar",
+      "stylist": "Mía Recepción IA",
+      "notes": "Agendado automáticamente por IA Mía (Plan PRO) vía WhatsApp"
+    },
+    {
+      "id": "bt_1788312980386",
+      "date": "2/9, 01:36 a. m.",
+      "clientName": "Castañeda",
+      "whatsapp": "+51925009051",
+      "service": "Alisado con Queratina",
+      "amount": 150,
+      "dateTimeRequested": "Karina linares\nPara el jueves a las 3 de la tarde",
+      "status": "Por Confirmar",
+      "stylist": "Mía Recepción IA",
+      "notes": "Agendado automáticamente por IA Mía (Plan PRO) vía WhatsApp"
+    },
     {
       "id": "bt_1788311647663",
       "date": "2/9, 01:14 a. m.",
