@@ -347,16 +347,15 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
                 Línea Oficial WhatsApp Conectada
               </span>
               <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] font-semibold">
-                Central de Pruebas Digital MYK Lab
+                Suite Empresarial de Automatización & CRM
               </span>
             </div>
             <h2 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
-              Demostraciones en Vivo para Clientes
+              Central de Gestión y Recepción Inteligente
               <span className="text-emerald-400 font-mono text-xl">{connectedPhone}</span>
             </h2>
             <p className="text-sm text-slate-300 mt-1 max-w-2xl">
-              Un solo número de WhatsApp para impresionar a cualquier cliente: menú inteligente inicial que deriva al 
-              <strong className="text-white"> Plan Esencial (Odontología S/ 490)</strong> o al <strong className="text-indigo-300"> Plan PRO (Centro de Belleza S/ 890)</strong> con IA Mía.
+              Plataforma integral de atención omnicanal 24/7 con Inteligencia Artificial, sincronización directa a base de datos y paneles de gestión operativa para Clínicas de Salud y Centros Especializados.
             </p>
           </div>
 
@@ -366,14 +365,14 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
               className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-900/30 transition-all cursor-pointer"
             >
               <Smartphone className="w-4 h-4" />
-              <span>Abrir Probador en Vivo (Simulador)</span>
+              <span>Simulador Interactivo de Chat</span>
             </button>
             <button
               onClick={() => setActiveTab('green_api')}
               className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <Settings className="w-4 h-4 text-indigo-400" />
-              <span>Green-API Conexión</span>
+              <span>Conexión WhatsApp</span>
             </button>
           </div>
         </div>
@@ -388,8 +387,8 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
                 : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
           >
-            <span>🦷 DEMO 1: Odontología (Plan Esencial — S/ 490)</span>
-            <span className="px-1.5 py-0.2 rounded bg-black/30 text-[10px]">Google Sheets</span>
+            <span>🦷 Módulo Dental: Gestión de Citas & Google Sheets</span>
+            <span className="px-1.5 py-0.2 rounded bg-black/30 text-[10px]">Base de Datos en Vivo</span>
           </button>
 
           <button
@@ -400,8 +399,8 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
                 : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
           >
-            <span>💅 DEMO 2: Centro de Belleza Glow (Plan PRO ⭐ — S/ 890)</span>
-            <span className="px-1.5 py-0.2 rounded bg-black/30 text-[10px]">IA Mía + Kanban</span>
+            <span>💅 Módulo Glow: Recepción IA Mía & CRM Kanban</span>
+            <span className="px-1.5 py-0.2 rounded bg-black/30 text-[10px]">IA Gemini + Tablero</span>
           </button>
 
           <button
@@ -413,7 +412,7 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
             }`}
           >
             <Globe className="w-3.5 h-3.5" />
-            <span>🎁 Bono Web Gratis (Previsualizador)</span>
+            <span>🌐 Portal Web & Landing Integrada</span>
           </button>
 
           <button
@@ -425,24 +424,24 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
             }`}
           >
             <Settings className="w-3.5 h-3.5" />
-            <span>🔌 Green-API Setup (+51 986 150 562)</span>
+            <span>⚙️ Conectividad WhatsApp</span>
           </button>
         </div>
       </div>
 
-      {/* 2. TAB CONTENT: DEMO 1 - Odontología (Plan Esencial) */}
+      {/* 2. TAB CONTENT: DEMO 1 - Odontología */}
       {activeTab === 'dental' && (
         <div className="space-y-5">
-          {/* Pitch Strategy Bar */}
+          {/* Operational Value Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-start gap-3">
               <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
                 1
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-200">Enfoque de Venta</h4>
+                <h4 className="text-xs font-bold text-slate-200">Recepción Inmediata 24/7</h4>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Mostrar orden inmediato, cero pérdida de pacientes y agendamiento rápido sin costos mensuales.
+                  Atención instantánea a pacientes vía WhatsApp, reduciendo tiempos de espera y evitando fuga de prospectos.
                 </p>
               </div>
             </div>
@@ -452,9 +451,9 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
                 2
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-200">Flujo de WhatsApp (Rígido)</h4>
+                <h4 className="text-xs font-bold text-slate-200">Catálogo & Calificación</h4>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  1️⃣ Bienvenida y Catálogo (S/ 50, S/ 150, S/ 120) ➔ 2️⃣ Captura de Datos ➔ 3️⃣ Cierre & Guardado.
+                  Presentación clara de tratamientos, tarifas oficiales y captura estructurada de datos del paciente en segundos.
                 </p>
               </div>
             </div>
@@ -464,9 +463,9 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
                 3
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-200">Cierre con el Doctor</h4>
+                <h4 className="text-xs font-bold text-slate-200">Sincronización en Tiempo Real</h4>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Muestras cómo su cita recién enviada desde el celular aparece en tiempo real en esta hoja de Google Sheets.
+                  Cada cita confirmada por WhatsApp se registra automáticamente en el sistema central y en Google Sheets.
                 </p>
               </div>
             </div>
@@ -482,13 +481,13 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-white">MYK LAB - REGISTRO DE DEMOS</h3>
+                    <h3 className="text-sm font-bold text-white">SISTEMA CLÍNICO - REGISTRO DE PACIENTES</h3>
                     <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-semibold">
-                      Hoja: Demo CRM Odontología - Esencial
+                      Base de Datos Sincronizada
                     </span>
                   </div>
                   <p className="text-xs text-slate-400">
-                    Sincronización bidireccional automática activada • S/ 490 Pago Único
+                    Sincronización bidireccional automática en la nube con Google Sheets y WhatsApp
                   </p>
                 </div>
               </div>
@@ -597,7 +596,7 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
         </div>
       )}
 
-      {/* 3. TAB CONTENT: DEMO 2 - Centro de Belleza Glow (Plan PRO ⭐ - S/ 890) */}
+      {/* 3. TAB CONTENT: DEMO 2 - Centro de Belleza Glow */}
       {activeTab === 'beauty' && (
         <div className="space-y-5">
           {/* Plan Pro Strategy Bar */}
@@ -608,13 +607,13 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-extrabold text-white">Glow Centro de Belleza • Sistema de Franquicia</h3>
+                  <h3 className="text-base font-extrabold text-white">Glow Centro de Belleza & Spa</h3>
                   <span className="px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30 text-[10px] font-bold">
-                    PLAN PRO ⭐ S/ 890
+                    IA GENERATIVA 24/7 + CRM
                   </span>
                 </div>
                 <p className="text-xs text-slate-300 mt-0.5">
-                  Recepcionista Inteligente 'Mía' (IA Gemini) que negocia en lenguaje natural + CRM Visual con login para dueña y estilistas.
+                  Recepcionista Inteligente 'Mía' (IA Gemini) que atiende en lenguaje natural + CRM Visual Kanban con roles para administración y especialistas.
                 </p>
               </div>
             </div>
@@ -796,19 +795,19 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
         </div>
       )}
 
-      {/* 4. TAB CONTENT: BONO WEB GRATIS (Páginas Web Profesionales Incluidas) */}
+      {/* 4. TAB CONTENT: PORTAL WEB INTEGRADO */}
       {activeTab === 'bono_web' && (
         <div className="space-y-5">
           <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold uppercase">
-                  Estrategia de Cierre Geancarlos
+                  Presencia Digital & Captación
                 </span>
-                <h3 className="text-base font-extrabold text-white">🎁 Bono Web Profesional Incluida</h3>
+                <h3 className="text-base font-extrabold text-white">🌐 Portal Web & Catálogo Digital Integrado</h3>
               </div>
               <p className="text-xs text-slate-300 mt-1 max-w-2xl">
-                Dile al cliente: <em>"Señor cliente, mientras usted prueba el WhatsApp y ve cómo los datos llegan a este sistema, mire la pantalla: esta es la página web profesional que nosotros le vamos a regalar incluida en su pago único."</em>
+                Sitio web institucional y catálogo interactivo diseñado para captar visitantes y dirigirlos con un clic directo al canal oficial de WhatsApp y al sistema de reservas.
               </p>
             </div>
 

@@ -38,8 +38,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = [
     {
       id: 'demos' as ActiveView,
-      label: 'Demos en Vivo (Ventas)',
-      sublabel: 'Odonto S/490 & Belleza S/890',
+      label: 'Módulos de Negocio',
+      sublabel: 'Salud & Belleza en Vivo',
       icon: Sparkles,
       badge: 'PRO',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold'
@@ -224,12 +224,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-3 border-t border-slate-800/80 bg-slate-950/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs border border-indigo-400/40">
-              MC
+            <div className="w-9 h-9 rounded-full overflow-hidden border border-indigo-500/40 bg-slate-900 flex-shrink-0 shadow-md shadow-indigo-950 flex items-center justify-center">
+              <img 
+                src="/digital_myk_logo.jpg" 
+                alt="Digital MYK Lab" 
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="leading-tight truncate">
-              <p className="text-xs font-semibold text-white truncate">Maycol Castañeda</p>
-              <p className="text-[10px] text-emerald-400 flex items-center gap-1">
+              <p className="text-xs font-bold text-white truncate">Digital MYK Lab</p>
+              <p className="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
                 Agente Principal
               </p>

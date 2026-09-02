@@ -594,26 +594,26 @@ async function processDemoMessage(phone: string, senderName: string, text: strin
     session.isBookingCompleted = false;
     session.history = [];
 
-    botReply = `¡Hola! 👋 Bienvenido a la Central de Pruebas de *Digital MYK Lab* (Línea Oficial +51 986 150 562).
+    botReply = `¡Hola! 👋 Bienvenido al Asistente Inteligente de *Digital MYK Lab*.
 
-Elige la demostración que deseas probar en vivo:
+Por favor selecciona el área o módulo con el que deseas interactuar:
 
-1️⃣ *Demo Odontología (Plan Esencial — S/ 490)*
-   _Flujo estructurado rápido hacia Base de Datos / Google Sheets_
+1️⃣ *Clínica Odontológica Sonrisas VIP*
+   _Agendamiento estructurado de citas médicas y sincronización en tiempo real_
 
-2️⃣ *Demo Centro de Belleza (Plan PRO ⭐ — S/ 890)*
-   _IA Conversacional Mía 24/7 + CRM Visual Kanban con Login_
+2️⃣ *Centro de Belleza & Spa Glow*
+   _Recepción con Inteligencia Artificial (Mía) y gestión de servicios_
 
-👉 *Responde con 1 o 2 para ingresar a la demo.*`;
+👉 *Responde con 1 o 2 para comenzar.*`;
   } 
-  // 2. User chooses Option 1: Odontología (Plan Esencial)
+  // 2. User chooses Option 1: Odontología
   else if (wantsDemo1 && (session.currentDemo === 'menu' || isExplicitReset || session.isBookingCompleted || session.dentalStep === undefined)) {
     session.currentDemo = 'dental';
     session.dentalStep = 'treatment_select';
     session.isBookingCompleted = false;
     session.history = [];
 
-    botReply = `¡Hola! 👋 Bienvenido a *Sonrisas VIP* (Plan Esencial).
+    botReply = `¡Hola! 👋 Bienvenido a *Clínica Odontológica Sonrisas VIP*.
 
 Para ayudarte rápido y agendar tu cita, ¿qué tratamiento buscas?
 
@@ -711,7 +711,7 @@ Por favor, envíame tu *Nombre completo* y la *Fecha/Hora* en la que deseas veni
 
 📍 *Clínica Sonrisas VIP*: Te esperamos con gusto. ¡Nos vemos pronto! 🦷
 
-_💡 Tip: Escribe *menu* para probar otra demo o agendar nuevamente._`;
+_💡 Tip: Escribe *menu* para ver las opciones principales o agendar nuevamente._`;
   }
   // 3. User chooses Option 2: Centro de Belleza Glow (Plan PRO con IA Mía)
   else if (wantsDemo2 && (session.currentDemo === 'menu' || isExplicitReset || session.isBookingCompleted || session.currentDemo !== 'beauty')) {
@@ -945,7 +945,7 @@ Cuéntame tu nombre y el servicio deseado 💖.`;
 
         // Append helper tip if not present
         if (!botReply.includes("menu")) {
-          botReply += `\n\n_💡 Tip: Escribe *menu* para probar la Demo de Odontología o reiniciar._`;
+          botReply += `\n\n_💡 Tip: Escribe *menu* para ver las opciones principales o agendar nuevamente._`;
         }
       }
     }

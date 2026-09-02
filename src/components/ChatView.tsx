@@ -341,7 +341,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     <Bot className="w-3 h-3" /> OmniBot IA (Gemini 3.7)
                   </span>
                 ) : (
-                  <span>{msg.authorName || 'Maycol Castañeda (Agente)'}</span>
+                  <span>{msg.authorName || 'Digital MYK Lab (Agente)'}</span>
                 )}
                 <span className="text-[10px] font-mono text-slate-400">• {msg.timestamp}</span>
               </div>

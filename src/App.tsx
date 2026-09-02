@@ -146,7 +146,7 @@ export default function App() {
       id: `msg_${Date.now()}`,
       conversationId: selectedConversation.id,
       sender: 'agent',
-      authorName: 'Maycol Castañeda',
+      authorName: 'Digital MYK Lab',
       text,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       status: 'sent',

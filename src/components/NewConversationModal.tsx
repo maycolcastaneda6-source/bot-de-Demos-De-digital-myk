@@ -44,7 +44,7 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
       unreadCount: 1,
       status: 'open',
       priority: 'medium',
-      assignedAgent: 'Maycol Castañeda',
+      assignedAgent: 'Digital MYK Lab',
       tags: ['Nuevo Lead', getChannelMeta(channel).name],
       botActive: true,
       sentiment: 'positivo',
