@@ -136,6 +136,53 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
   const [queueModeLoading, setQueueModeLoading] = useState(false);
   const [queueModeResult, setQueueModeResult] = useState<string | null>(null);
 
+  const [setWebhookLoading, setSetWebhookLoading] = useState(false);
+  const [setWebhookResult, setSetWebhookResult] = useState<string | null>(null);
+  const [isLocalPollingActive, setIsLocalPollingActive] = useState(true);
+
+  const handleSetWebhookUrl = async () => {
+    setSetWebhookLoading(true);
+    setSetWebhookResult(null);
+    try {
+      const res = await fetch('/api/green-api/set-webhook-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idInstance: idInstance.trim(),
+          apiTokenInstance: apiTokenInstance.trim(),
+          apiUrl: apiUrl.trim(),
+          webhookUrl: fullWebhookUrl
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSetWebhookResult(`✅ ¡Webhook configurado en Green-API hacia ${fullWebhookUrl}! Los mensajes llegarán directamente aquí.`);
+        fetchLogs();
+      } else {
+        setSetWebhookResult(`⚠️ Error: ${data.error || JSON.stringify(data)}`);
+      }
+    } catch (err: any) {
+      setSetWebhookResult(`❌ Error de conexión: ${err.message}`);
+    } finally {
+      setSetWebhookLoading(false);
+    }
+  };
+
+  const handleTogglePolling = async () => {
+    try {
+      const res = await fetch('/api/green-api/toggle-polling', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !isLocalPollingActive })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsLocalPollingActive(data.pollingEnabled);
+        fetchLogs();
+      }
+    } catch (e) {}
+  };
+
   const handleActivateQueueMode = async () => {
     setQueueModeLoading(true);
     setQueueModeResult(null);
@@ -1027,6 +1074,19 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
                 </button>
 
                 <button
+                  onClick={handleTogglePolling}
+                  className={`px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all border ${
+                    isLocalPollingActive 
+                      ? 'bg-slate-800/80 hover:bg-slate-700 text-slate-200 border-slate-700' 
+                      : 'bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border-amber-500/50'
+                  }`}
+                  title="Pausa la recepción continua en esta ventana para que tu servidor de Render tenga prioridad exclusiva"
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>{isLocalPollingActive ? '⏸️ Pausar Polling Local' : '▶️ Reanudar Polling'}</span>
+                </button>
+
+                <button
                   onClick={handleForcePoll}
                   disabled={forcePolling}
                   className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-emerald-950"
@@ -1109,12 +1169,28 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
                     setCopiedWebhook(true);
                     setTimeout(() => setCopiedWebhook(false), 2000);
                   }}
-                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all"
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all"
                 >
                   <Copy className="w-3.5 h-3.5" />
-                  <span>{copiedWebhook ? '¡Copiado!' : 'Copiar URL'}</span>
+                  <span>{copiedWebhook ? '¡Copiado!' : 'Copiar'}</span>
+                </button>
+                <button
+                  onClick={handleSetWebhookUrl}
+                  disabled={setWebhookLoading}
+                  title="Aplica directamente esta URL en los servidores de Green-API con un solo clic"
+                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-indigo-950"
+                >
+                  {setWebhookLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
+                  <span>{setWebhookLoading ? 'Configurando...' : '⚡ Configurar en Green-API'}</span>
                 </button>
               </div>
+
+              {setWebhookResult && (
+                <div className="p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-500/40 text-xs text-indigo-200 font-mono">
+                  {setWebhookResult}
+                </div>
+              )}
+
               <div className="p-3 rounded-lg bg-indigo-950/30 border border-indigo-500/20 text-[11px] text-slate-300 space-y-1">
                 <p className="font-semibold text-indigo-200">Pasos exactos en console.green-api.com:</p>
                 <ol className="list-decimal list-inside space-y-0.5 text-slate-400">

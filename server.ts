@@ -759,17 +759,36 @@ _O escribe *menu* para volver a la central de demostraciones._`;
         session.beautyPrice = 50;
       }
 
-      // Name extraction
-      const nameMatch = cleanText.match(/(?:mi\s+nombre\s+es|me\s+llamo|soy)\s+([A-Za-zÁÉÍÓÚáéíóúñ\s]+)/i);
-      if (nameMatch && nameMatch[1].trim()) {
-        session.beautyClientName = nameMatch[1].trim();
-      } else if (!session.beautyClientName && cleanText.split(" ").length <= 3 && !lowerText.includes("pm") && !lowerText.includes("am") && !lowerText.includes("mañana") && !lowerText.includes("pedicure") && !lowerText.includes("manicure") && !lowerText.includes("corte") && !lowerText.includes("alisado")) {
+      // Advanced multi-line / conversational Name extraction
+      const lines = cleanText.split(/[\n,]+/).map(l => l.trim()).filter(Boolean);
+      const isTimeWord = (t: string) => {
+        const l = t.toLowerCase();
+        return l.includes("pm") || l.includes("am") || l.includes(":") || l.includes("mañana") || 
+               l.includes("tarde") || l.includes("noche") || l.includes("lunes") || l.includes("martes") || 
+               l.includes("miercoles") || l.includes("miércoles") || l.includes("jueves") || l.includes("viernes") || 
+               l.includes("sabado") || l.includes("sábado") || l.includes("domingo") || l.includes("para el");
+      };
+
+      const namePrefixMatch = cleanText.match(/(?:mi\s+nombre\s+es|me\s+llamo|soy)\s+([A-Za-zÁÉÍÓÚáéíóúñ\s]+)/i);
+      if (namePrefixMatch && namePrefixMatch[1].trim()) {
+        session.beautyClientName = namePrefixMatch[1].replace(/[,.\n].*$/, "").trim();
+      } else if (lines.length >= 2 && !isTimeWord(lines[0]) && lines[0].split(" ").length <= 4) {
+        // Line 1 is the name (e.g. "Karina linares"), Line 2 is the date/time
+        session.beautyClientName = lines[0].trim();
+        session.beautyDateTime = lines.slice(1).join(" ").trim();
+      } else if (!session.beautyClientName && cleanText.split(" ").length <= 3 && !isTimeWord(cleanText) && !lowerText.includes("pedicure") && !lowerText.includes("manicure") && !lowerText.includes("corte") && !lowerText.includes("alisado")) {
         session.beautyClientName = cleanText.trim();
       }
 
       // Date / Time extraction
-      if (lowerText.includes("pm") || lowerText.includes("am") || lowerText.includes(":") || lowerText.includes("mañana") || lowerText.includes("lunes") || lowerText.includes("martes") || lowerText.includes("miercoles") || lowerText.includes("miércoles") || lowerText.includes("jueves") || lowerText.includes("viernes") || lowerText.includes("sabado") || lowerText.includes("sábado") || lowerText.includes("domingo")) {
-        session.beautyDateTime = cleanText.replace(/^(mi nombre es|me llamo|soy)\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]+[,.\n]?/i, "").trim() || cleanText;
+      if (isTimeWord(lowerText)) {
+        if (!session.beautyDateTime) {
+          if (lines.length >= 2 && session.beautyClientName === lines[0]) {
+            session.beautyDateTime = lines.slice(1).join(" ").trim();
+          } else {
+            session.beautyDateTime = cleanText.replace(/^(mi nombre es|me llamo|soy)\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]+[,.\n]?/i, "").trim() || cleanText;
+          }
+        }
       }
 
       // 2. Try Gemini Generative AI first
@@ -1067,6 +1086,70 @@ app.post("/api/green-api/set-queue-mode", async (req, res) => {
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// Endpoint: Configure Green-API to Webhook Mode with specific URL
+app.post("/api/green-api/set-webhook-url", async (req, res) => {
+  const id = String(req.body.idInstance || greenApiConfig.idInstance || "").trim();
+  const token = String(req.body.apiTokenInstance || greenApiConfig.apiTokenInstance || "").trim();
+  const customApiUrl = String(req.body.apiUrl || greenApiConfig.apiUrl || "").trim();
+  const webhookUrl = String(req.body.webhookUrl || "").trim();
+
+  if (!id || !token) {
+    return res.status(400).json({ success: false, error: "Faltan credenciales (idInstance y apiTokenInstance)" });
+  }
+  if (!webhookUrl) {
+    return res.status(400).json({ success: false, error: "Ingresa la URL del webhook" });
+  }
+
+  const baseUrl = getGreenApiBaseUrl(id, customApiUrl);
+  const setSettingsUrl = `${baseUrl}/waInstance${id}/setSettings/${token}`;
+
+  try {
+    const apiRes = await fetch(setSettingsUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        webhookUrl: webhookUrl,
+        incomingWebhook: "yes",
+        outgoingMessageWebhook: "yes",
+        stateWebhook: "yes"
+      })
+    });
+
+    const data = await apiRes.json().catch(() => ({}));
+    
+    addGreenApiLog({
+      type: 'diagnostic',
+      status: `🔗 Webhook Oficial Configurado en Green-API: ${webhookUrl}`,
+      details: data
+    });
+
+    res.json({
+      success: apiRes.ok,
+      message: `¡Webhook configurado exitosamente hacia ${webhookUrl}! Los mensajes llegarán en tiempo real.`,
+      data
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Endpoint: Toggle Polling on this specific server instance
+app.post("/api/green-api/toggle-polling", (req, res) => {
+  const { enabled } = req.body;
+  if (enabled !== undefined) {
+    greenApiConfig.pollingEnabled = !!enabled;
+  } else {
+    greenApiConfig.pollingEnabled = !greenApiConfig.pollingEnabled;
+  }
+  saveStoredGreenConfig(greenApiConfig);
+  addGreenApiLog({
+    type: 'diagnostic',
+    status: `⚙️ Polling ${greenApiConfig.pollingEnabled ? 'ACTIVADO' : 'PAUSADO'} en este servidor`,
+    details: { pollingEnabled: greenApiConfig.pollingEnabled }
+  });
+  res.json({ success: true, pollingEnabled: greenApiConfig.pollingEnabled });
 });
 
 // Endpoint: Force drain / check queued WhatsApp notifications now
