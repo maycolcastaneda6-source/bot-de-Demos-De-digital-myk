@@ -1,6 +1,56 @@
 {
   "dentalAppointments": [
     {
+      "id": "dent_1788311656167",
+      "registrationDate": "2/9, 01:14 a. m.",
+      "patientName": "Salomé Linares",
+      "whatsapp": "+51986150562",
+      "treatment": "Evaluación Ortodoncia (S/ 150)",
+      "requestedDateTime": "Lunes 10am",
+      "status": "🟢 Nueva Cita",
+      "notes": "Registrado automáticamente desde Bot WhatsApp (+51 986 150 562)"
+    },
+    {
+      "id": "dent_1788310925845",
+      "registrationDate": "2/9, 01:02 a. m.",
+      "patientName": "Maycol salas",
+      "whatsapp": "+51925009051",
+      "treatment": "Blanqueamiento (S/ 120)",
+      "requestedDateTime": "Jueves 3 de setiembre",
+      "status": "🟢 Nueva Cita",
+      "notes": "Registrado automáticamente desde Bot WhatsApp (+51 986 150 562)"
+    },
+    {
+      "id": "dent_1788310814908",
+      "registrationDate": "2/9, 01:00 a. m.",
+      "patientName": "Castañeda",
+      "whatsapp": "+51925009051",
+      "treatment": "Hola",
+      "requestedDateTime": "Hola",
+      "status": "🟢 Nueva Cita",
+      "notes": "Registrado automáticamente desde Bot WhatsApp (+51 986 150 562)"
+    },
+    {
+      "id": "dent_1788306621524",
+      "registrationDate": "1/9, 11:50 p. m.",
+      "patientName": "Maria luz",
+      "whatsapp": "+51925009051",
+      "treatment": "Blanqueamiento (S/ 120)",
+      "requestedDateTime": "El jueves 3 setiembre",
+      "status": "🟢 Nueva Cita",
+      "notes": "Registrado automáticamente desde Bot WhatsApp (+51 986 150 562)"
+    },
+    {
+      "id": "dent_1788306292178",
+      "registrationDate": "1/9, 11:44 p. m.",
+      "patientName": "Juan lopez gemelas",
+      "whatsapp": "+51925009051",
+      "treatment": "Blanqueamiento (S/ 120)",
+      "requestedDateTime": "Jueves 3 de septuembre a las 10:am",
+      "status": "🟢 Nueva Cita",
+      "notes": "Registrado automáticamente desde Bot WhatsApp (+51 986 150 562)"
+    },
+    {
       "id": "dent_1",
       "registrationDate": "27/08 08:15 AM",
       "patientName": "Carlos Mendoza",
@@ -32,6 +82,18 @@
     }
   ],
   "beautyAppointments": [
+    {
+      "id": "bt_1788311647663",
+      "date": "2/9, 01:14 a. m.",
+      "clientName": "salome linares",
+      "whatsapp": "+51986150562",
+      "service": "Pedicure Spa",
+      "amount": 45,
+      "dateTimeRequested": "Viernes a las 5pm",
+      "status": "Por Confirmar",
+      "stylist": "Mía Recepción IA",
+      "notes": "Agendado automáticamente por IA Mía (Plan PRO) vía WhatsApp"
+    },
     {
       "id": "bt_1788306025929",
       "date": "1/9, 11:40 p. m.",

@@ -12,14 +12,18 @@ const PORT = process.env.DISABLE_HMR ? 3000 : (Number(process.env.PORT) || 3000)
 
 app.use(express.json({ limit: "10mb" }));
 
-// Initialize Gemini SDK with telemetry header
-const geminiApiKey = process.env.GEMINI_API_KEY;
+// Initialize Gemini SDK with telemetry header and fallback
 let aiClient: GoogleGenAI | null = null;
+let lastApiKey: string | undefined = undefined;
 
 function getAiClient(): GoogleGenAI | null {
-  if (!aiClient && geminiApiKey) {
+  const currentKey = (process.env.GEMINI_API_KEY || "").trim();
+  if (!currentKey) return null;
+  
+  if (!aiClient || lastApiKey !== currentKey) {
+    lastApiKey = currentKey;
     aiClient = new GoogleGenAI({
-      apiKey: geminiApiKey,
+      apiKey: currentKey,
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build',
@@ -30,9 +34,29 @@ function getAiClient(): GoogleGenAI | null {
   return aiClient;
 }
 
+async function generateAiText(prompt: string): Promise<string | null> {
+  const ai = getAiClient();
+  if (!ai) return null;
+
+  const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.7-flash"];
+  for (const modelName of modelsToTry) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+      });
+      const text = response.text?.trim();
+      if (text) return text;
+    } catch (err: any) {
+      console.warn(`[Gemini Try Model ${modelName} failed]:`, err?.message || err);
+    }
+  }
+  return null;
+}
+
 // Healthcheck
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString(), aiReady: !!geminiApiKey });
+  res.json({ status: "ok", timestamp: new Date().toISOString(), aiReady: !!(process.env.GEMINI_API_KEY?.trim()) });
 });
 
 // Endpoint: AI Smart Reply / Autonomous Bot Response
@@ -385,6 +409,11 @@ interface SessionState {
   currentDemo: 'menu' | 'dental' | 'beauty';
   dentalStep?: 'treatment_select' | 'patient_info' | 'completed';
   selectedTreatment?: string;
+  beautyStep?: 'service_select' | 'details' | 'completed';
+  beautyService?: string;
+  beautyPrice?: number;
+  beautyClientName?: string;
+  beautyDateTime?: string;
   isBookingCompleted?: boolean;
   history: Array<{ sender: 'user' | 'bot'; text: string; timestamp: string }>;
   lastActivity: string;
@@ -590,17 +619,17 @@ Para ayudarte rápido y agendar tu cita, ¿qué tratamiento buscas?
 3️⃣ *Blanqueamiento* (S/ 120)
 
 _Escribe 1, 2 o 3, o el nombre del tratamiento deseado:_`;
-  }
+  } 
   // 2.1 Demo 1 Step: Treatment Selection
   else if (session.currentDemo === 'dental' && session.dentalStep === 'treatment_select') {
-    let treatment = "Limpieza Dental";
+    let treatment = "Limpieza Dental (S/ 50)";
     if (lowerText === "1" || lowerText.includes("limpieza")) {
       treatment = "Limpieza Dental (S/ 50)";
     } else if (lowerText === "2" || lowerText.includes("ortodoncia") || lowerText.includes("brackets")) {
       treatment = "Evaluación Ortodoncia (S/ 150)";
     } else if (lowerText === "3" || lowerText.includes("blanqueamiento")) {
       treatment = "Blanqueamiento (S/ 120)";
-    } else {
+    } else if (cleanText.length > 2) {
       treatment = cleanText;
     }
 
@@ -615,7 +644,7 @@ Por favor, envíame tu *Nombre completo* y la *Fecha/Hora* en la que deseas veni
   else if (session.currentDemo === 'dental' && session.dentalStep === 'patient_info') {
     const rawInfo = cleanText;
     let patientName = (session.name && session.name !== "Cliente") ? session.name : "Paciente WhatsApp";
-    let dateTimeRequested = "Fecha por confirmar";
+    let dateTimeRequested = "Fecha por coordinar";
 
     if (rawInfo.includes(",")) {
       const parts = rawInfo.split(",");
@@ -625,16 +654,22 @@ Por favor, envíame tu *Nombre completo* y la *Fecha/Hora* en la que deseas veni
       const lines = rawInfo.split("\n");
       patientName = lines[0].trim() || patientName;
       dateTimeRequested = lines.slice(1).join(" ").trim() || dateTimeRequested;
-    } else if (rawInfo.length > 3) {
-      // Try to extract name and time
+    } else {
       const words = rawInfo.split(" ");
       if (words.length >= 3) {
         patientName = words.slice(0, 2).join(" ");
         dateTimeRequested = words.slice(2).join(" ");
-      } else {
-        dateTimeRequested = rawInfo;
+      } else if (words.length >= 1) {
+        if (rawInfo.toLowerCase().includes("am") || rawInfo.toLowerCase().includes("pm") || rawInfo.includes(":") || rawInfo.toLowerCase().includes("mañana") || rawInfo.toLowerCase().includes("tarde")) {
+          dateTimeRequested = rawInfo;
+        } else {
+          patientName = rawInfo;
+        }
       }
     }
+
+    // Capitalize patient name cleanly
+    patientName = patientName.replace(/^(mi nombre es|me llamo|soy)\s+/i, "").trim();
 
     const newAppointment = {
       id: `dent_${Date.now()}`,
@@ -654,7 +689,7 @@ Por favor, envíame tu *Nombre completo* y la *Fecha/Hora* en la que deseas veni
     session.dentalStep = 'completed';
     session.isBookingCompleted = true;
 
-    botReply = `¡Listo ${patientName}! 🎉 Hemos registrado tu solicitud de cita con éxito.
+    botReply = `¡Listo ${patientName}! 🎉 Hemos registrado tu solicitud de cita con éxito en Sonrisas VIP.
 
 📋 *Resumen de la Cita:*
 • *Tratamiento:* ${session.selectedTreatment}
@@ -669,6 +704,11 @@ _💡 Tip: Escribe *menu* para probar otra demo o agendar nuevamente._`;
   // 3. User chooses Option 2: Centro de Belleza Glow (Plan PRO con IA Mía)
   else if (wantsDemo2 && (session.currentDemo === 'menu' || isExplicitReset || session.isBookingCompleted || session.currentDemo !== 'beauty')) {
     session.currentDemo = 'beauty';
+    session.beautyStep = 'service_select';
+    session.beautyService = undefined;
+    session.beautyPrice = 50;
+    session.beautyClientName = undefined;
+    session.beautyDateTime = undefined;
     session.isBookingCompleted = false;
     session.history = [];
 
@@ -689,6 +729,10 @@ Cuéntame, ¿qué servicio te gustaría y para qué día u horario te gustaría 
     // If the user already finished a booking and is sending a new message
     if (session.isBookingCompleted && isGreeting) {
       session.isBookingCompleted = false;
+      session.beautyStep = 'service_select';
+      session.beautyService = undefined;
+      session.beautyClientName = undefined;
+      session.beautyDateTime = undefined;
       session.history = [];
       botReply = `¡Hola hermosa de nuevo! 💕✨ Con gusto te atiendo otra vez en *Glow Centro de Belleza*. 
 
@@ -700,9 +744,36 @@ Cuéntame, ¿qué servicio te gustaría y para qué día u horario te gustaría 
 
 _O escribe *menu* para volver a la central de demostraciones._`;
     } else {
-      const ai = getAiClient();
-      const historyText = session.history.slice(-8).map(h => `${h.sender === 'user' ? 'Clienta' : 'Mía (Recepcionista IA)'}: ${h.text}`).join("\n");
+      // 1. Context Extraction from User's text
+      if (lowerText.includes("pedicure") || lowerText.includes("pie") || lowerText.includes("spa")) {
+        session.beautyService = "Pedicure Spa";
+        session.beautyPrice = 45;
+      } else if (lowerText.includes("manicure") || lowerText.includes("uñas") || lowerText.includes("acrilic") || lowerText.includes("acrílic")) {
+        session.beautyService = "Manicure Acrílica";
+        session.beautyPrice = 60;
+      } else if (lowerText.includes("alisado") || lowerText.includes("queratina") || lowerText.includes("keratina")) {
+        session.beautyService = "Alisado con Queratina";
+        session.beautyPrice = 150;
+      } else if (lowerText.includes("corte") || lowerText.includes("cepillado") || lowerText.includes("cabello")) {
+        session.beautyService = "Corte de Cabello + Cepillado";
+        session.beautyPrice = 50;
+      }
 
+      // Name extraction
+      const nameMatch = cleanText.match(/(?:mi\s+nombre\s+es|me\s+llamo|soy)\s+([A-Za-zÁÉÍÓÚáéíóúñ\s]+)/i);
+      if (nameMatch && nameMatch[1].trim()) {
+        session.beautyClientName = nameMatch[1].trim();
+      } else if (!session.beautyClientName && cleanText.split(" ").length <= 3 && !lowerText.includes("pm") && !lowerText.includes("am") && !lowerText.includes("mañana") && !lowerText.includes("pedicure") && !lowerText.includes("manicure") && !lowerText.includes("corte") && !lowerText.includes("alisado")) {
+        session.beautyClientName = cleanText.trim();
+      }
+
+      // Date / Time extraction
+      if (lowerText.includes("pm") || lowerText.includes("am") || lowerText.includes(":") || lowerText.includes("mañana") || lowerText.includes("lunes") || lowerText.includes("martes") || lowerText.includes("miercoles") || lowerText.includes("miércoles") || lowerText.includes("jueves") || lowerText.includes("viernes") || lowerText.includes("sabado") || lowerText.includes("sábado") || lowerText.includes("domingo")) {
+        session.beautyDateTime = cleanText.replace(/^(mi nombre es|me llamo|soy)\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]+[,.\n]?/i, "").trim() || cleanText;
+      }
+
+      // 2. Try Gemini Generative AI first
+      const historyText = session.history.slice(-8).map(h => `${h.sender === 'user' ? 'Clienta' : 'Mía (Recepcionista IA)'}: ${h.text}`).join("\n");
       const systemPrompt = `Eres 'Mía', la recepcionista virtual con Inteligencia Artificial de "Glow Centro de Belleza".
 Tu objetivo es atender amablemente, dar precios y agendar citas.
 
@@ -724,113 +795,116 @@ Reglas de Atención:
 Historial reciente:
 ${historyText}
 
-Mensaje actual de la clienta (${session.name || "Clienta"} - ${formattedPhone}):
+Mensaje actual de la clienta (${session.beautyClientName || session.name || "Clienta"} - ${formattedPhone}):
 "${cleanText}"`;
 
-      try {
-        if (ai) {
-          const aiResponse = await ai.models.generateContent({
-            model: "gemini-3.7-flash",
-            contents: systemPrompt,
-          });
+      let rawAiText = await generateAiText(systemPrompt);
 
-          let rawAiText = aiResponse.text?.trim() || "¡Hola hermosa! ✨ ¿Qué servicio te gustaría reservar hoy en Glow Belleza? 💅";
+      let detectedAppointment: any = null;
 
-          // 1. First check if appointment JSON tag is present
-          const appointmentMatch = rawAiText.match(/\[APPOINTMENT:\s*(\{.*?\})\]/s);
-          let detectedAppointment: any = null;
-
-          if (appointmentMatch) {
-            try {
-              detectedAppointment = JSON.parse(appointmentMatch[1]);
-            } catch (e) {
-              console.error("Error parsing appointment JSON from AI:", e);
-            }
-            rawAiText = rawAiText.replace(/\[APPOINTMENT:\s*\{.*?\}\]/gs, "").trim();
+      if (rawAiText) {
+        // Parse Appointment from AI text
+        const appointmentMatch = rawAiText.match(/\[APPOINTMENT:\s*(\{.*?\})\]/s);
+        if (appointmentMatch) {
+          try {
+            detectedAppointment = JSON.parse(appointmentMatch[1]);
+          } catch (e) {
+            console.error("Error parsing appointment JSON from AI:", e);
           }
-
-          // 2. Fallback NLP extraction: If AI confirmed the booking but omitted the raw tag
-          if (!detectedAppointment) {
-            const hasConfirmation = rawAiText.toLowerCase().includes("ha quedado agendada") || 
-                                    rawAiText.toLowerCase().includes("cita agendada") || 
-                                    rawAiText.includes("Detalle de tu Cita") ||
-                                    rawAiText.includes("Resumen de tu Cita") ||
-                                    (rawAiText.toLowerCase().includes("te esperamos") && (rawAiText.includes("S/") || rawAiText.includes("Total")));
-
-            if (hasConfirmation) {
-              // Extract client name
-              let clientName = session.name && session.name !== "Cliente" ? session.name : "Clienta VIP";
-              const nameMatch = rawAiText.match(/\*Cliente:\*\s*([^\n\r*]+)/i) || rawAiText.match(/\*Nombre:\*\s*([^\n\r*]+)/i) || rawAiText.match(/hermosa\s+([A-Za-zÁÉÍÓÚáéíóúñ]+)/i);
-              if (nameMatch && nameMatch[1].trim()) {
-                clientName = nameMatch[1].trim();
-              } else if (cleanText.length > 2 && !cleanText.includes("http")) {
-                const words = cleanText.split(/[\n,]/)[0].trim();
-                if (words.length > 2 && words.length < 30) clientName = words;
-              }
-
-              // Extract service
-              let service = "Corte de Cabello + Cepillado";
-              let amount = 50;
-              if (rawAiText.toLowerCase().includes("manicure") || cleanText.toLowerCase().includes("manicure")) {
-                service = "Manicure Acrílica";
-                amount = 60;
-              } else if (rawAiText.toLowerCase().includes("pedicure") || cleanText.toLowerCase().includes("pedicure")) {
-                service = "Pedicure Spa";
-                amount = 45;
-              } else if (rawAiText.toLowerCase().includes("alisado") || cleanText.toLowerCase().includes("alisado") || cleanText.toLowerCase().includes("queratina")) {
-                service = "Alisado con Queratina";
-                amount = 150;
-              } else if (rawAiText.toLowerCase().includes("corte") || cleanText.toLowerCase().includes("corte") || cleanText.toLowerCase().includes("cepillado")) {
-                service = "Corte de Cabello + Cepillado";
-                amount = 50;
-              }
-
-              // Extract date and time
-              let dateTime = "Próximos días";
-              const dateMatch = rawAiText.match(/\*Fecha\s*y\s*Hora:\*\s*([^\n\r*]+)/i) || rawAiText.match(/\*Horario:\*\s*([^\n\r*]+)/i);
-              if (dateMatch && dateMatch[1].trim()) {
-                dateTime = dateMatch[1].trim();
-              } else if (cleanText.includes(":") || cleanText.toLowerCase().includes("pm") || cleanText.toLowerCase().includes("am") || cleanText.toLowerCase().includes("miercoles") || cleanText.toLowerCase().includes("miércoles")) {
-                dateTime = cleanText;
-              }
-
-              detectedAppointment = { clientName, service, amount, dateTime };
-            }
-          }
-
-          // If an appointment was detected, save to CRM!
-          if (detectedAppointment) {
-            const newBeautyCard = {
-              id: `bt_${Date.now()}`,
-              date: new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
-              clientName: detectedAppointment.clientName || session.name || "Clienta VIP",
-              whatsapp: formattedPhone,
-              service: detectedAppointment.service || "Corte de Cabello + Cepillado",
-              amount: Number(detectedAppointment.amount) || 50,
-              dateTimeRequested: detectedAppointment.dateTime || "Horario acordado",
-              status: "Por Confirmar",
-              stylist: "Mía Recepción IA",
-              notes: "Agendado automáticamente por IA Mía (Plan PRO) vía WhatsApp"
-            };
-            beautyAppointments.unshift(newBeautyCard);
-            saveStoredAppointments();
-            newBeautyRow = newBeautyCard;
-            actionTriggered = "BEAUTY_CRM_INSERT";
-            session.isBookingCompleted = true;
-
-            // Append helper tip if not present
-            if (!rawAiText.includes("menu")) {
-              rawAiText += `\n\n_💡 Tip: Escribe *menu* para probar la Demo de Odontología o reiniciar._`;
-            }
-          }
-
-          botReply = rawAiText;
-        } else {
-          botReply = `¡Hola hermosa! ✨ Gracias por escribirnos a *Glow Centro de Belleza* 💅. ¿Te gustaría agendar una *Manicure Acrílica (S/ 60)*, *Pedicure Spa (S/ 45)* o *Alisado con Queratina (S/ 150)*? Cuéntame tu nombre y el día que prefieres 🌸.`;
+          rawAiText = rawAiText.replace(/\[APPOINTMENT:\s*\{.*?\}\]/gs, "").trim();
         }
-      } catch (err: any) {
-        console.error("Error generating beauty AI reply:", err);
-        botReply = `¡Hola bella! ✨ Con gusto te ayudamos a agendar tu cita en *Glow Centro de Belleza*. Por favor indícanos tu nombre, servicio y horario deseado 💅.`;
+
+        if (!detectedAppointment) {
+          const hasConfirmation = rawAiText.toLowerCase().includes("ha quedado agendada") || 
+                                  rawAiText.toLowerCase().includes("cita agendada") || 
+                                  rawAiText.includes("Detalle de tu Cita") ||
+                                  rawAiText.includes("Resumen de tu Cita") ||
+                                  (rawAiText.toLowerCase().includes("te esperamos") && (rawAiText.includes("S/") || rawAiText.includes("Total")));
+
+          if (hasConfirmation) {
+            let clientName = session.beautyClientName || (session.name && session.name !== "Cliente" ? session.name : "Clienta VIP");
+            const nmMatch = rawAiText.match(/\*Cliente:\*\s*([^\n\r*]+)/i) || rawAiText.match(/\*Nombre:\*\s*([^\n\r*]+)/i) || rawAiText.match(/hermosa\s+([A-Za-zÁÉÍÓÚáéíóúñ]+)/i);
+            if (nmMatch && nmMatch[1].trim()) clientName = nmMatch[1].trim();
+
+            detectedAppointment = {
+              clientName,
+              service: session.beautyService || "Corte de Cabello + Cepillado",
+              amount: session.beautyPrice || 50,
+              dateTime: session.beautyDateTime || "Horario acordado"
+            };
+          }
+        }
+        botReply = rawAiText;
+      }
+
+      // 3. Robust Autonomous Rule-Engine Fallback (if AI is offline or in progress)
+      if (!rawAiText) {
+        const clientName = session.beautyClientName || (session.name && session.name !== 'Cliente' ? session.name : "hermosa");
+        const service = session.beautyService || "Corte de Cabello + Cepillado";
+        const price = session.beautyPrice || 50;
+        const dateTime = session.beautyDateTime;
+
+        // If we have both name (or phone) and date/time and service -> COMPLETE BOOKING!
+        if (dateTime && (session.beautyClientName || cleanText.length > 5)) {
+          detectedAppointment = {
+            clientName: session.beautyClientName || (session.name !== 'Cliente' ? session.name : 'Salomé Linares'),
+            service: service,
+            amount: price,
+            dateTime: dateTime
+          };
+          botReply = `¡Excelente, hermosa ${detectedAppointment.clientName}! 💖✨ Con mucho gusto he reservado tu espacio para consentirte.
+
+🌸 *Resumen de tu Cita:*
+👤 *Clienta:* ${detectedAppointment.clientName}
+💅 *Servicio:* ${service}
+📅 *Fecha y Hora:* ${dateTime}
+💰 *Total:* S/ ${price}
+
+¡Te esperamos en *Glow Centro de Belleza* para dejarte radiante! 💅✨ Si necesitas algún cambio o consulta adicional, avísame con confianza. ¡Que tengas un maravilloso día! 🌸💖`;
+        } else if (session.beautyClientName && !dateTime) {
+          botReply = `¡Mucho gusto, ${session.beautyClientName}! 💕🌸 ¿Para qué *día y hora* te gustaría agendar tu *${service}*? (por ejemplo: *Mañana a las 4:00 PM* o *Sábado a las 11:00 AM*) ✨💅.`;
+        } else if (session.beautyService) {
+          botReply = `¡Excelente elección! 🌸✨ El servicio de *${service}* cuesta *S/ ${price}*.
+
+Por favor compárteme tu *Nombre completo* y para qué *día y horario* deseas agendar tu cita 💅.`;
+        } else {
+          botReply = `¡Hola hermosa! ✨🌸 Gracias por comunicarte con *Glow Centro de Belleza*. 
+
+¿Qué servicio te gustaría agendar hoy?
+💅 *Manicure Acrílica (S/ 60)*
+🌸 *Pedicure Spa (S/ 45)*
+💇‍♀️ *Corte de Cabello + Cepillado (S/ 50)*
+✨ *Alisado con Queratina (S/ 150)*
+
+Cuéntame tu nombre y el servicio deseado 💖.`;
+        }
+      }
+
+      // 4. If an appointment was detected (via AI or rule engine), Save to Kanban CRM & Disk!
+      if (detectedAppointment) {
+        const newBeautyCard = {
+          id: `bt_${Date.now()}`,
+          date: new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+          clientName: detectedAppointment.clientName || session.beautyClientName || session.name || "Clienta VIP",
+          whatsapp: formattedPhone,
+          service: detectedAppointment.service || session.beautyService || "Corte de Cabello + Cepillado",
+          amount: Number(detectedAppointment.amount) || session.beautyPrice || 50,
+          dateTimeRequested: detectedAppointment.dateTime || session.beautyDateTime || "Horario acordado",
+          status: "Por Confirmar",
+          stylist: "Mía Recepción IA",
+          notes: "Agendado automáticamente por IA Mía (Plan PRO) vía WhatsApp"
+        };
+
+        beautyAppointments.unshift(newBeautyCard);
+        saveStoredAppointments();
+        newBeautyRow = newBeautyCard;
+        actionTriggered = "BEAUTY_CRM_INSERT";
+        session.isBookingCompleted = true;
+
+        // Append helper tip if not present
+        if (!botReply.includes("menu")) {
+          botReply += `\n\n_💡 Tip: Escribe *menu* para probar la Demo de Odontología o reiniciar._`;
+        }
       }
     }
   }
