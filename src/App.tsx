@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar, ActiveView } from './components/Sidebar';
 import { ConversationList } from './components/ConversationList';
 import { ChatView } from './components/ChatView';
