@@ -96,13 +96,13 @@ export const initialGreenApiConfig: GreenApiConfig = {
 };
 
 export const initialSalesGreenApiConfig: GreenApiConfig = {
-  idInstance: '',
+  idInstance: '710722803080',
   apiTokenInstance: '',
-  apiUrl: 'https://api.greenapi.com',
+  apiUrl: 'https://7107.api.greenapi.com',
   webhookUrl: '/api/green-api/sales/webhook',
   connectedPhone: '+51 929 327 654',
   status: 'disconnected',
-  lastPing: 'Listo para vincular instancia Green-API',
+  lastPing: 'Instancia 710722803080 lista — falta ingresar apiTokenInstance',
   pollingEnabled: true,
   autoRespondAll: true
 };

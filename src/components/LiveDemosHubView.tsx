@@ -74,9 +74,9 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
   const [connectedPhone, setConnectedPhone] = useState(greenApiConfig.connectedPhone || '+51 986 150 562');
 
   // Line 2 Green API Form state (Ventas Digital MYK Lab: +51 929 327 654)
-  const [salesIdInstance, setSalesIdInstance] = useState(salesGreenApiConfig.idInstance || '');
+  const [salesIdInstance, setSalesIdInstance] = useState(salesGreenApiConfig.idInstance || '710722803080');
   const [salesApiTokenInstance, setSalesApiTokenInstance] = useState(salesGreenApiConfig.apiTokenInstance || '');
-  const [salesApiUrl, setSalesApiUrl] = useState(salesGreenApiConfig.apiUrl || 'https://api.greenapi.com');
+  const [salesApiUrl, setSalesApiUrl] = useState(salesGreenApiConfig.apiUrl || 'https://7107.api.greenapi.com');
   const [salesConnectedPhone, setSalesConnectedPhone] = useState(salesGreenApiConfig.connectedPhone || '+51 929 327 654');
 
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -201,8 +201,22 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
   const handleSetWebhookUrl = async () => {
     setSetWebhookLoading(true);
     setSetWebhookResult(null);
-    const endpoint = selectedGreenInstance === 'sales' ? '/api/green-api/sales/set-webhook-url' : '/api/green-api/set-webhook-url';
+    const isSales = selectedGreenInstance === 'sales';
+    const configEndpoint = isSales ? '/api/green-api/sales/config' : '/api/green-api/config';
+    const endpoint = isSales ? '/api/green-api/sales/set-webhook-url' : '/api/green-api/set-webhook-url';
     try {
+      await fetch(configEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idInstance: activeIdInstance.trim(),
+          apiTokenInstance: activeTokenInstance.trim(),
+          apiUrl: activeApiUrl.trim(),
+          connectedPhone: activeConnectedPhone.trim(),
+          pollingEnabled: true
+        })
+      }).catch(() => {});
+
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -215,6 +229,25 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
       });
       const data = await res.json();
       if (data.success) {
+        if (isSales) {
+          onUpdateSalesGreenApiConfig({
+            idInstance: activeIdInstance.trim(),
+            apiTokenInstance: activeTokenInstance.trim(),
+            apiUrl: activeApiUrl.trim(),
+            connectedPhone: activeConnectedPhone.trim(),
+            status: 'connected',
+            lastPing: new Date().toISOString()
+          });
+        } else {
+          onUpdateGreenApiConfig({
+            idInstance: activeIdInstance.trim(),
+            apiTokenInstance: activeTokenInstance.trim(),
+            apiUrl: activeApiUrl.trim(),
+            connectedPhone: activeConnectedPhone.trim(),
+            status: 'connected',
+            lastPing: new Date().toISOString()
+          });
+        }
         setSetWebhookResult(`✅ ¡Webhook configurado en Green-API hacia ${fullWebhookUrl}!`);
         fetchLogs();
       } else {
@@ -279,6 +312,25 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
       });
       const data = await res.json();
       if (data.success) {
+        if (isSales) {
+          onUpdateSalesGreenApiConfig({
+            idInstance: activeIdInstance.trim(),
+            apiTokenInstance: activeTokenInstance.trim(),
+            apiUrl: activeApiUrl.trim(),
+            connectedPhone: activeConnectedPhone.trim(),
+            status: 'connected',
+            lastPing: new Date().toISOString()
+          });
+        } else {
+          onUpdateGreenApiConfig({
+            idInstance: activeIdInstance.trim(),
+            apiTokenInstance: activeTokenInstance.trim(),
+            apiUrl: activeApiUrl.trim(),
+            connectedPhone: activeConnectedPhone.trim(),
+            status: 'connected',
+            lastPing: new Date().toISOString()
+          });
+        }
         setQueueModeResult('✅ ¡Modo Cola Directo Activado con éxito! El servidor ahora responde al instante sin bloqueos de webhook.');
         fetchLogs();
       } else {

@@ -275,9 +275,9 @@ let greenApiConfig: GreenApiConfigState = {
 };
 
 let salesGreenApiConfig: GreenApiConfigState = {
-  idInstance: storedSalesConfig.idInstance || process.env.SALES_GREEN_API_ID_INSTANCE || "",
+  idInstance: storedSalesConfig.idInstance || process.env.SALES_GREEN_API_ID_INSTANCE || "710722803080",
   apiTokenInstance: storedSalesConfig.apiTokenInstance || process.env.SALES_GREEN_API_TOKEN || "",
-  apiUrl: storedSalesConfig.apiUrl || process.env.SALES_GREEN_API_URL || "https://api.greenapi.com",
+  apiUrl: storedSalesConfig.apiUrl || process.env.SALES_GREEN_API_URL || "https://7107.api.greenapi.com",
   connectedPhone: storedSalesConfig.connectedPhone || "+51 929 327 654",
   status: (storedSalesConfig.idInstance && storedSalesConfig.apiTokenInstance) ? "connected" : "disconnected",
   lastPing: new Date().toISOString(),
@@ -1568,6 +1568,16 @@ app.post("/api/green-api/sales/set-queue-mode", async (req, res) => {
     });
 
     const data = await apiRes.json().catch(() => ({}));
+    if (apiRes.ok) {
+      salesGreenApiConfig.idInstance = id;
+      salesGreenApiConfig.apiTokenInstance = token;
+      salesGreenApiConfig.apiUrl = baseUrl;
+      salesGreenApiConfig.pollingEnabled = true;
+      salesGreenApiConfig.status = "connected";
+      salesGreenApiConfig.lastPing = new Date().toISOString();
+      saveStoredJsonConfig(SALES_GREEN_CONFIG_PATH, salesGreenApiConfig);
+    }
+
     addGreenApiLog({
       type: 'diagnostic',
       status: '🚀 Modo Cola Activado en Línea Ventas (+51 929 327 654)',
@@ -1581,6 +1591,7 @@ app.post("/api/green-api/sales/set-queue-mode", async (req, res) => {
     res.json({
       success: apiRes.ok,
       message: "¡Modo Cola 24/7 activado en la Línea Ventas (+51 929 327 654)!",
+      config: salesGreenApiConfig,
       data
     });
   } catch (err: any) {
@@ -1616,12 +1627,20 @@ app.post("/api/green-api/sales/set-webhook-url", async (req, res) => {
       })
     });
     const data = await apiRes.json().catch(() => ({}));
+    if (apiRes.ok) {
+      salesGreenApiConfig.idInstance = id;
+      salesGreenApiConfig.apiTokenInstance = token;
+      salesGreenApiConfig.apiUrl = baseUrl;
+      salesGreenApiConfig.status = "connected";
+      salesGreenApiConfig.lastPing = new Date().toISOString();
+      saveStoredJsonConfig(SALES_GREEN_CONFIG_PATH, salesGreenApiConfig);
+    }
     addGreenApiLog({
       type: 'diagnostic',
       status: `🔗 Webhook Configurado en Línea Ventas: ${webhookUrl}`,
       details: data
     }, 'sales');
-    res.json({ success: apiRes.ok, message: `¡Webhook configurado hacia ${webhookUrl}!`, data });
+    res.json({ success: apiRes.ok, message: `¡Webhook configurado hacia ${webhookUrl}!`, config: salesGreenApiConfig, data });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
