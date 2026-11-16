@@ -268,7 +268,7 @@ export default function App() {
     avatar: string,
     messageText: string,
     targetLine: 'demos' | 'sales' = 'demos'
-  ): Promise<string | void> => {
+  ): Promise<string | { reply: string; buttons?: Array<{ buttonId: string; buttonText: string }> } | void> => {
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
     // 1. Check if conversation already exists for this phone/handle
@@ -350,6 +350,7 @@ export default function App() {
     if (botSettings.enabled && updatedConversation.botActive) {
       try {
         let botReplyText = '¡Hola! Gracias por comunicarte con nosotros.';
+        let botReplyButtons: Array<{ buttonId: string; buttonText: string }> | undefined = undefined;
 
         // For WhatsApp, route either to Line 2 (Digital MYK Sales 929 327 654) or Line 1 (Demos 986 150 562)
         if (channel === 'whatsapp' && targetLine === 'sales') {
@@ -364,6 +365,7 @@ export default function App() {
           });
           const salesData = await salesRes.json();
           botReplyText = salesData.reply || botReplyText;
+          botReplyButtons = Array.isArray(salesData.buttons) ? salesData.buttons : undefined;
           if (salesData.lead) {
             setSalesLeads(prev => {
               const filtered = prev.filter(l => l.id !== salesData.lead.id);
@@ -431,7 +433,7 @@ export default function App() {
           })
         );
 
-        return botReplyText;
+        return { reply: botReplyText, buttons: botReplyButtons };
       } catch (err) {
         console.error('Error getting bot response:', err);
       }
@@ -496,6 +498,15 @@ export default function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status })
+    }).catch(console.error);
+  };
+
+  const handleUpdateSalesLead = (id: string, updates: Partial<SalesLead>) => {
+    setSalesLeads(prev => prev.map(l => l.id === id ? { ...l, ...updates } : l));
+    fetch('/api/sales/update-lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, updates })
     }).catch(console.error);
   };
 
@@ -629,6 +640,7 @@ export default function App() {
             onUpdateDentalStatus={handleUpdateDentalStatus}
             onUpdateBeautyStatus={handleUpdateBeautyStatus}
             onUpdateSalesLeadStatus={handleUpdateSalesLeadStatus}
+            onUpdateSalesLead={handleUpdateSalesLead}
             onAddDentalAppointment={handleAddDentalAppointment}
             onAddBeautyAppointment={handleAddBeautyAppointment}
             onAddSalesLead={handleAddSalesLead}

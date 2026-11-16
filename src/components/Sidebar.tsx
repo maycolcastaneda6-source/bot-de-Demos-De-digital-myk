@@ -117,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {aiBotActive ? 'OmniBot IA 24/7' : 'Modo Manual'}
               </p>
               <p className="text-[10px] text-slate-400 mt-0.5">
-                {aiBotActive ? 'Gemini 3.7 Autónomo' : 'Agentes Humanos'}
+                {aiBotActive ? 'Gemini 4 Autónomo' : 'Agentes Humanos'}
               </p>
             </div>
           </div>
@@ -177,12 +177,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <Smartphone className="w-4 h-4 text-emerald-400 animate-pulse" />
               <div>
                 <div className="text-[13px] font-semibold flex items-center gap-1.5">
-                  Probador en Vivo
+                  Canal Chat en Vivo
                   <span className="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1 py-0.2 rounded font-bold">
-                    TEST
+                    PRO
                   </span>
                 </div>
-                <div className="text-[10px] text-emerald-400/80">Simular chats de clientes</div>
+                <div className="text-[10px] text-emerald-400/80">Probar botones WhatsApp</div>
               </div>
             </div>
             <Sparkles className="w-3.5 h-3.5 text-emerald-400" />

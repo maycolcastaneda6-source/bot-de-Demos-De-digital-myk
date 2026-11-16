@@ -167,6 +167,25 @@ export interface GreenApiConfig {
   autoRespondAll?: boolean;
 }
 
+export type SalesLeadStage =
+  | '🔥 Nuevo Lead'
+  | '💬 En Asesoría'
+  | '📄 Cotizado'
+  | '💳 Pago / Cierre'
+  | '✅ Cerrado';
+
+export interface SalesInteractiveButton {
+  buttonId: string;
+  buttonText: string;
+}
+
+export interface SalesChatMessage {
+  sender: 'user' | 'bot';
+  text: string;
+  timestamp: string;
+  buttons?: SalesInteractiveButton[];
+}
+
 export interface SalesLead {
   id: string;
   registrationDate: string;
@@ -175,8 +194,14 @@ export interface SalesLead {
   serviceInterest: string;
   businessType?: string;
   lastMessage: string;
-  status: '🔥 Nuevo Lead' | '💬 En Asesoría' | '📄 Cotizado' | '✅ Cerrado';
+  status: SalesLeadStage;
+  estimatedValue?: number;
+  paymentMethod?: string;
+  paymentStatus?: 'Pendiente' | 'Por Verificar' | 'Confirmado';
+  priority?: 'Alta' | 'Media' | 'Baja';
+  email?: string;
   notes?: string;
+  history?: SalesChatMessage[];
 }
 
 export interface QuickLeadScenario {

@@ -335,6 +335,60 @@ function getGreenApiUrl(idInstance: string, apiTokenInstance: string, method: st
   return `${baseUrl}/waInstance${idInstance}/${method}/${apiTokenInstance}`;
 }
 
+function extractGreenApiMessageText(messageData: any, rawSender: string): string {
+  if (!messageData || typeof messageData !== "object") return "";
+  const typeMsg = messageData.typeMessage || "";
+
+  if (typeMsg === "textMessage") {
+    return messageData.textMessageData?.textMessage || "";
+  }
+  if (typeMsg === "extendedTextMessage") {
+    return messageData.extendedTextMessageData?.text || "";
+  }
+  if (typeMsg === "quotedMessage") {
+    return messageData.extendedTextMessageData?.text || messageData.quotedMessage?.text || "";
+  }
+  if (typeMsg === "interactiveButtonsResponse" && messageData.interactiveButtonsResponse) {
+    return (
+      messageData.interactiveButtonsResponse.buttonId ||
+      messageData.interactiveButtonsResponse.selectedButtonId ||
+      messageData.interactiveButtonsResponse.buttonText ||
+      ""
+    );
+  }
+  if (typeMsg === "buttonsResponseMessage" && messageData.buttonsResponseMessage) {
+    return (
+      messageData.buttonsResponseMessage.selectedButtonId ||
+      messageData.buttonsResponseMessage.selectedDisplayText ||
+      ""
+    );
+  }
+  if (typeMsg === "templateButtonReplyMessage" && messageData.templateButtonReplyMessage) {
+    return (
+      messageData.templateButtonReplyMessage.selectedId ||
+      messageData.templateButtonReplyMessage.selectedDisplayText ||
+      ""
+    );
+  }
+  if (typeMsg === "pollUpdateMessage" && messageData.pollMessageData?.votes) {
+    const votes = messageData.pollMessageData.votes as Array<{ optionName: string; optionVoters?: string[] }>;
+    const senderClean = (rawSender || "").replace(/@.*$/, "");
+    const picked = votes.find(v =>
+      Array.isArray(v.optionVoters) &&
+      v.optionVoters.some(voter => voter === rawSender || voter.replace(/@.*$/, "") === senderClean)
+    );
+    if (picked?.optionName) return picked.optionName;
+  }
+  if (typeMsg === "imageMessage" || typeMsg === "documentMessage") {
+    const caption = messageData.fileMessageData?.caption || messageData.caption || "";
+    return caption.trim() ? `${caption.trim()} [Comprobante Adjunto]` : "[Comprobante / Imagen adjunta]";
+  }
+  if (typeof messageData.textMessage === "string") {
+    return messageData.textMessage;
+  }
+  return "";
+}
+
 // Global Poller & Processor for Green-API incoming queue (bypasses webhook delivery blocks)
 let isPollingCurrently = false;
 async function fetchAndProcessSingleNotification(): Promise<boolean> {
@@ -358,37 +412,32 @@ async function fetchAndProcessSingleNotification(): Promise<boolean> {
 
     console.log(`[Green-API Received Notification ${receiptId}]:`, typeWebhook);
 
-    if (typeWebhook === "incomingMessageReceived" || body.messageData) {
+    const isIncomingCustomerMsg = typeWebhook === "incomingMessageReceived" || (!typeWebhook && !!body.messageData);
+    if (isIncomingCustomerMsg) {
       const senderData = body.senderData || {};
       const messageData = body.messageData || {};
 
       const rawSender = senderData.sender || senderData.chatId || "";
+      const isGroupOrStatus = rawSender.endsWith("@g.us") || rawSender === "status@broadcast";
       const senderPhone = rawSender.replace(/@.*$/, "");
       const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Cliente WhatsApp";
 
-      let textMessage = "";
-      if (messageData.typeMessage === "textMessage") {
-        textMessage = messageData.textMessageData?.textMessage || "";
-      } else if (messageData.typeMessage === "extendedTextMessage") {
-        textMessage = messageData.extendedTextMessageData?.text || "";
-      } else if (messageData.typeMessage === "quotedMessage") {
-        textMessage = messageData.extendedTextMessageData?.text || messageData.quotedMessage?.text || "";
-      } else if (typeof messageData.textMessage === "string") {
-        textMessage = messageData.textMessage;
-      }
+      if (!isGroupOrStatus && senderPhone) {
+        const textMessage = extractGreenApiMessageText(messageData, rawSender);
 
-      addGreenApiLog({
-        type: 'incoming_webhook',
-        phone: senderPhone,
-        sender: senderName,
-        text: textMessage || `[${messageData.typeMessage || 'Mensaje'}]`,
-        status: textMessage ? '📥 Mensaje Recibido (Auto-Receiver)' : 'ℹ️ Mensaje Multimedia',
-        details: body
-      });
+        addGreenApiLog({
+          type: 'incoming_webhook',
+          phone: senderPhone,
+          sender: senderName,
+          text: textMessage || `[${messageData.typeMessage || 'Mensaje'}]`,
+          status: textMessage ? '📥 Mensaje Recibido (Auto-Receiver)' : 'ℹ️ Mensaje Multimedia',
+          details: body
+        });
 
-      if (textMessage && senderPhone) {
-        console.log(`[Auto-Receiver Processing] De: ${senderName} (${senderPhone}): "${textMessage}"`);
-        await processDemoMessage(senderPhone, senderName, textMessage);
+        if (textMessage) {
+          console.log(`[Auto-Receiver Processing] De: ${senderName} (${senderPhone}): "${textMessage}"`);
+          await processDemoMessage(senderPhone, senderName, textMessage);
+        }
       }
     }
 
@@ -446,37 +495,32 @@ async function fetchAndProcessSalesNotification(): Promise<boolean> {
     const body = data.body || {};
     const typeWebhook = body.typeWebhook || "";
 
-    if (typeWebhook === "incomingMessageReceived" || body.messageData) {
+    const isIncomingSalesMsg = typeWebhook === "incomingMessageReceived" || (!typeWebhook && !!body.messageData);
+    if (isIncomingSalesMsg) {
       const senderData = body.senderData || {};
       const messageData = body.messageData || {};
 
       const rawSender = senderData.sender || senderData.chatId || "";
+      const isGroupOrStatus = rawSender.endsWith("@g.us") || rawSender === "status@broadcast";
       const senderPhone = rawSender.replace(/@.*$/, "");
       const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Prospecto WhatsApp";
 
-      let textMessage = "";
-      if (messageData.typeMessage === "textMessage") {
-        textMessage = messageData.textMessageData?.textMessage || "";
-      } else if (messageData.typeMessage === "extendedTextMessage") {
-        textMessage = messageData.extendedTextMessageData?.text || "";
-      } else if (messageData.typeMessage === "quotedMessage") {
-        textMessage = messageData.extendedTextMessageData?.text || messageData.quotedMessage?.text || "";
-      } else if (typeof messageData.textMessage === "string") {
-        textMessage = messageData.textMessage;
-      }
+      if (!isGroupOrStatus && senderPhone) {
+        const textMessage = extractGreenApiMessageText(messageData, rawSender);
 
-      addGreenApiLog({
-        type: 'incoming_webhook',
-        phone: senderPhone,
-        sender: senderName,
-        text: textMessage || `[${messageData.typeMessage || 'Mensaje'}]`,
-        status: textMessage ? '📥 Mensaje Recibido (Línea Ventas 929 327 654)' : 'ℹ️ Mensaje Multimedia',
-        details: body
-      }, 'sales');
+        addGreenApiLog({
+          type: 'incoming_webhook',
+          phone: senderPhone,
+          sender: senderName,
+          text: textMessage || `[${messageData.typeMessage || 'Mensaje'}]`,
+          status: textMessage ? '📥 Mensaje Recibido (Línea Ventas 929 327 654)' : 'ℹ️ Mensaje Multimedia',
+          details: body
+        }, 'sales');
 
-      if (textMessage && senderPhone) {
-        console.log(`[Sales Line Auto-Receiver] De: ${senderName} (${senderPhone}): "${textMessage}"`);
-        await processDigitalMykSalesMessage(senderPhone, senderName, textMessage);
+        if (textMessage) {
+          console.log(`[Sales Line Auto-Receiver] De: ${senderName} (${senderPhone}): "${textMessage}"`);
+          await processDigitalMykSalesMessage(senderPhone, senderName, textMessage);
+        }
       }
     }
 
@@ -708,102 +752,303 @@ interface SalesSessionState {
 
 const salesSessions = new Map<string, SalesSessionState>();
 
+interface SalesButtonOption {
+  buttonId: string;
+  buttonText: string;
+}
+
+const DIGITAL_MYK_PAYMENT_DETAILS = `👤 *Titular:* Maycol Castañeda
+
+🟣 *Yape:* 929327654
+🔵 *Plin:* 921034349
+
+🏛️ *Banco de la Nación*
+• N° Cuenta: 04765342509
+• CCI: 018-765-004765342509-81
+
+🔴 *Scotiabank (Cuenta Ahorro Soles)*
+• N° Cuenta: 8330613655
+• CCI: 00972420833061365561`;
+
 function detectDigitalMykServiceIntent(lowerText: string): string {
-  if (lowerText.includes("gratis") || lowerText.includes("oferta") || lowerText.includes("combo") || lowerText.includes("promo") || lowerText.includes("pack")) {
+  if (
+    lowerText === "btn_combo" ||
+    lowerText.includes("gratis") ||
+    lowerText.includes("oferta") ||
+    lowerText.includes("combo") ||
+    lowerText.includes("promo") ||
+    lowerText.includes("pack") ||
+    lowerText.includes("ia + web")
+  ) {
     return "Combo Asistente IA + Web Gratis";
   }
-  if (lowerText.includes("app") || lowerText.includes("aplicacion") || lowerText.includes("aplicación") || lowerText.includes("movil") || lowerText.includes("móvil") || lowerText.includes("android") || lowerText.includes("ios") || lowerText.includes("sistema")) {
+  if (
+    lowerText === "btn_app" ||
+    lowerText.includes("app") ||
+    lowerText.includes("aplicacion") ||
+    lowerText.includes("aplicación") ||
+    lowerText.includes("movil") ||
+    lowerText.includes("móvil") ||
+    lowerText.includes("android") ||
+    lowerText.includes("ios") ||
+    lowerText.includes("sistema")
+  ) {
     return "App a la Medida";
   }
-  if (lowerText.includes("chatbot") || lowerText.includes("bot") || lowerText.includes("ia") || lowerText.includes("inteligencia") || lowerText.includes("whatsapp") || lowerText.includes("automatiz") || lowerText.includes("asistente")) {
+  if (
+    lowerText === "btn_chatbot" ||
+    lowerText.includes("chatbot") ||
+    lowerText.includes("bot") ||
+    lowerText.includes("asistente") ||
+    lowerText.includes("automatiz")
+  ) {
     return "Chatbot IA 24/7";
   }
-  if (lowerText.includes("web") || lowerText.includes("pagina") || lowerText.includes("página") || lowerText.includes("sitio") || lowerText.includes("landing") || lowerText.includes("seo") || lowerText.includes("vercel")) {
-    return "Página Web Profesional";
+  if (
+    lowerText === "btn_web" ||
+    lowerText.includes("web") ||
+    lowerText.includes("pagina") ||
+    lowerText.includes("página") ||
+    lowerText.includes("sitio") ||
+    lowerText.includes("landing") ||
+    lowerText.includes("seo") ||
+    lowerText.includes("vercel")
+  ) {
+    return "Web Profesional PRO";
   }
   return "Información General de Servicios";
 }
 
-function buildProFallbackSalesReply(cleanText: string, senderName: string, isFirstMessage: boolean, detectedService: string): string {
-  const lower = cleanText.toLowerCase();
-  const greetingName = (senderName && senderName !== "Prospecto WhatsApp" && senderName !== "Cliente") ? ` ${senderName}` : "";
-
-  if (lower === "1" || detectedService === "Chatbot IA 24/7") {
-    return `¡Excelente elección${greetingName}! 🤖🚀 En *Digital MYK Lab* desarrollamos *Chatbots y Asistentes con Inteligencia Artificial 24/7* que trabajan por tu negocio todo el día:
-
-✅ *Atención inmediata 24/7:* Responde a tus clientes en menos de 1 minuto sin perder ventas.
-✅ *Genera Leads Calificados:* Convierte cada conversación en oportunidades reales.
-✅ *Agenda Citas Automáticamente:* Sincroniza reservas directo con tu calendario, Google Sheets o CRM.
-✅ *Integración Total:* WhatsApp, Instagram, Messenger, Shopify y HubSpot.
-
-🎁 *Bono Activo:* Al implementar tu *Asistente IA 24/7*, te llevas tu *Sitio Web Profesional TOTALMENTE GRATIS* _(consultar por dominio/hosting externo)_.
-
-Para recomendarte el plan ideal, cuéntame: *¿De qué rubro es tu negocio y cuántas consultas recibes al día aproximadamente?* 💬✨`;
-  }
-
-  if (lower === "2" || detectedService === "App a la Medida") {
-    return `¡Genial${greetingName}! 📱✨ En *Digital MYK Lab* creamos *la App hecha a la medida que tu negocio necesita* para que tengas tu empresa en la palma de la mano:
-
-🚀 *Funcionalidades clave que incluimos:*
-• Panel de ventas en tiempo real y reportes inteligentes.
-• Gestión de productos, pedidos, catálogo y clientes.
-• Notificaciones automáticas y seguimiento de entregas.
-• *Seguras, rápidas y escalables* con tecnología de vanguardia.
-
-🛡️ Además cuentas con *Asesoría Gratuita*, entrega a tiempo y soporte continuo.
-
-Cuéntame brevemente: *¿Qué procesos o ventas te gustaría controlar desde tu propia App?* 📲`;
-  }
-
-  if (lower === "3" || detectedService === "Página Web Profesional") {
-    return `¡Perfecto${greetingName}! 🌐⚡ En *Digital MYK Lab* diseñamos *Páginas Web Profesionales de Alto Rendimiento* pensadas para convertir visitas en clientes:
-
-💎 *¿Qué incluye nuestro desarrollo web?*
-• *Tecnología de Punta:* Código limpio alojado en servidores de altísimo rendimiento (carga en milisegundos).
-• *Máxima Seguridad:* Certificado SSL 100% incluido 🔒.
-• *SEO de Alto Impacto:* Estructura optimizada para posicionar tu marca en Google 📈.
-• *Botón directo a WhatsApp* para cerrar ventas al instante.
-
-🔗 Puedes ver nuestro portafolio en: https://digitalmyklab.vercel.app/
-
-*¿Tu negocio ya cuenta con dominio/web actual o empezaríamos desde cero?* 🚀`;
-  }
-
-  if (lower === "4" || detectedService === "Combo Asistente IA + Web Gratis") {
-    return `🔥 *¡Has elegido nuestra Oferta Estrella${greetingName}!* 🎁✨
-
-Al adquirir tu *Asistente Virtual con Inteligencia Artificial 24/7* en *Digital MYK Lab*, te llevas tu *Sitio Web Profesional TOTALMENTE GRATIS* _(consultar por hosting/dominio externos)_.
-
-⚡ *Con este ecosistema completo obtienes:*
-1️⃣ *Asistente IA 24/7:* Responde en < 1 minuto, califica clientes y agenda citas automáticamente.
-2️⃣ *Sitio Web Profesional GRATIS:* Diseño moderno, SSL de seguridad, optimizado para Google y conectado a tu WhatsApp.
-3️⃣ *99.9% Uptime y Soporte 24/7/365* con garantía real.
-
-¿De qué rubro es tu empresa o emprendimiento para enviarte una propuesta a medida hoy mismo? 🚀💼`;
-  }
-
-  // Default immediate response to ANY word/greeting on +51 929 327 654
-  return `¡Hola${greetingName}! 👋 Bienvenido a *Digital MYK Lab* — _Seguridad y Garantía_ 🛡️🚀
-
-Gracias por comunicarte con nosotros. Ayudamos a empresas y emprendedores a *automatizar sus ventas y multiplicar sus clientes* con tecnología de vanguardia:
-
-1️⃣ *Chatbots & Asistentes IA 24/7* 🤖
-   _Atención inmediata, calificación de leads y agendamiento automático de citas._
-
-2️⃣ *Páginas Web Profesionales* 🌐
-   _Carga ultrarrápida, Certificado SSL incluido, SEO para Google y diseño enfocado en ventas._
-
-3️⃣ *Aplicaciones Móviles / Web a la Medida* 📱
-   _Controla ventas, pedidos, clientes y reportes en tiempo real desde cualquier lugar._
-
-4️⃣ *🎁 OFERTA ESPECIAL:* *Asistente IA 24/7 + Sitio Web Profesional GRATIS* 🔥
-
-🔗 Portafolio: https://digitalmyklab.vercel.app/
-
-Cuéntame, *¿cuál de estas soluciones te interesa potenciar y de qué trata tu negocio?* (También puedes responder *1, 2, 3 o 4* para darte detalles al instante) 👇✨`;
+function getDefaultEstimatedValue(service: string): number {
+  if (service === "App a la Medida") return 2800;
+  if (service === "Combo Asistente IA + Web Gratis") return 1490;
+  if (service === "Chatbot IA 24/7") return 1200;
+  if (service === "Web Profesional PRO") return 950;
+  return 1200;
 }
 
-// Core Engine for Line 2 (+51 929 327 654): Responds IMMEDIATELY to ANY incoming word/message
+function detectSalesButtonAction(cleanText: string): string | null {
+  const lower = cleanText.toLowerCase().trim();
+
+  if (lower === "btn_voucher" || lower.includes("ya realicé el pago") || lower.includes("ya realice el pago") || lower.includes("ya pague") || lower.includes("ya pagué") || lower.includes("comprobante") || lower.includes("voucher") || lower.includes("constancia")) {
+    return "btn_voucher";
+  }
+  if (lower === "btn_pay" || lower === "btn_start" || lower === "5" || lower.includes("medios de pago") || lower.includes("ver cuentas") || lower.includes("cuentas / yape") || lower.includes("yape") || lower.includes("plin") || lower.includes("scotiabank") || lower.includes("nacion") || lower.includes("nación") || lower.includes("cci") || lower.includes("deposito") || lower.includes("depósito") || lower.includes("transferencia") || lower.includes("pagar") || lower.includes("cuenta bancaria") || lower.includes("iniciar proyecto") || lower.includes("contratar plan") || lower.includes("cotizar mi app") || lower.includes("solicitar web")) {
+    return "btn_pay";
+  }
+  if (lower === "btn_advisor" || lower.includes("asesor directo") || lower.includes("hablar con maycol") || lower.includes("consultar asesor") || lower.includes("coordinar inicio") || lower.includes("humano")) {
+    return "btn_advisor";
+  }
+  if (lower === "btn_services" || lower.includes("ver servicios") || lower.includes("todos servicios") || lower === "portafolio") {
+    return "btn_services";
+  }
+  if (lower === "btn_combo" || lower === "4" || lower.includes("ia + web gratis") || lower.includes("ver plan ia + web") || lower.includes("oferta ia + web")) {
+    return "btn_combo";
+  }
+  if (lower === "btn_chatbot" || lower === "1" || lower === "🤖 chatbots ia 24/7") {
+    return "btn_chatbot";
+  }
+  if (lower === "btn_app" || lower === "2" || lower === "📱 app a la medida") {
+    return "btn_app";
+  }
+  if (lower === "btn_web" || lower === "3" || lower === "🌐 web profesional pro") {
+    return "btn_web";
+  }
+  return null;
+}
+
+function buildProButtonResponse(action: string | null, cleanText: string, senderName: string, detectedService: string): {
+  reply: string;
+  buttons: SalesButtonOption[];
+  stageOverride?: '🔥 Nuevo Lead' | '💬 En Asesoría' | '📄 Cotizado' | '💳 Pago / Cierre' | '✅ Cerrado';
+  paymentStatusOverride?: 'Pendiente' | 'Por Verificar' | 'Confirmado';
+  paymentMethodOverride?: string;
+} {
+  const greetingName = (senderName && senderName !== "Prospecto WhatsApp" && senderName !== "Cliente") ? ` ${senderName}` : "";
+
+  if (action === "btn_voucher") {
+    const lower = cleanText.toLowerCase();
+    let method = "Por confirmar";
+    if (lower.includes("yape")) method = "Yape (929327654)";
+    else if (lower.includes("plin")) method = "Plin (921034349)";
+    else if (lower.includes("scotiabank")) method = "Scotiabank";
+    else if (lower.includes("nacion") || lower.includes("nación")) method = "Banco de la Nación";
+
+    return {
+      reply: `¡Muchas gracias${greetingName}! ✅ Hemos registrado tu notificación de abono en nuestro sistema comercial.\n\nEl equipo de proyectos de *Digital MYK Lab* (a cargo de *Maycol Castañeda*) verificará el comprobante de inmediato y te escribirá por esta misma línea para iniciar el levantamiento de requerimientos y cronograma de entrega.`,
+      buttons: [
+        { buttonId: "btn_advisor", buttonText: "📅 Coordinar Inicio" },
+        { buttonId: "btn_services", buttonText: "💼 Ver Servicios" },
+        { buttonId: "btn_pay", buttonText: "💳 Ver Cuentas" }
+      ],
+      stageOverride: "💳 Pago / Cierre",
+      paymentStatusOverride: "Por Verificar",
+      paymentMethodOverride: method !== "Por confirmar" ? method : undefined
+    };
+  }
+
+  if (action === "btn_pay") {
+    return {
+      reply: `Para iniciar tu proyecto o realizar tu depósito con total respaldo, te compartimos nuestras cuentas oficiales de *Digital MYK Lab*:\n\n${DIGITAL_MYK_PAYMENT_DETAILS}\n\n📲 Una vez realizado el depósito, envíanos la captura del comprobante por aquí o presiona *✅ Ya realicé el pago*.`,
+      buttons: [
+        { buttonId: "btn_voucher", buttonText: "✅ Ya realicé el pago" },
+        { buttonId: "btn_advisor", buttonText: "👨‍💻 Hablar con Maycol" },
+        { buttonId: "btn_services", buttonText: "💼 Ver Servicios" }
+      ],
+      stageOverride: "💳 Pago / Cierre"
+    };
+  }
+
+  if (action === "btn_advisor") {
+    return {
+      reply: `Perfecto${greetingName} ✅ Tu requerimiento ha sido asignado directamente a *Maycol Castañeda — Dirección de Proyectos en Digital MYK Lab*.\n\nEn breve nos pondremos en contacto contigo por esta línea para brindarte asesoría ejecutiva y cerrar los detalles técnicos de tu implementación.\n\n🌐 Web Corporativa: https://digitalmyklab.vercel.app/\n✉️ Correo: compumasster@gmail.com`,
+      buttons: [
+        { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
+        { buttonId: "btn_combo", buttonText: "🎁 Oferta IA + Web" },
+        { buttonId: "btn_services", buttonText: "💼 Portafolio" }
+      ],
+      stageOverride: "📄 Cotizado"
+    };
+  }
+
+  if (action === "btn_services") {
+    return {
+      reply: `Nuestro portafolio oficial en *Digital MYK Lab* (_Seguridad y Garantía_) está diseñado para automatizar procesos y escalar las ventas de tu empresa.\n\nSelecciona una solución con los botones de abajo para ver el alcance detallado:`,
+      buttons: [
+        { buttonId: "btn_chatbot", buttonText: "🤖 Chatbots IA 24/7" },
+        { buttonId: "btn_app", buttonText: "📱 App a la Medida" },
+        { buttonId: "btn_web", buttonText: "🌐 Web Profesional PRO" }
+      ],
+      stageOverride: "💬 En Asesoría"
+    };
+  }
+
+  if (action === "btn_combo" || detectedService === "Combo Asistente IA + Web Gratis") {
+    return {
+      reply: `🎁 *Plan Integral: Asistente IA 24/7 + Sitio Web Profesional*${greetingName}\n\nAl implementar tu *Asistente Virtual con Inteligencia Artificial 24/7* en *Digital MYK Lab*, incluimos tu *Sitio Web Profesional TOTALMENTE GRATIS* _(consultar condiciones para dominio/hosting externos)_.\n\n✅ *Asistente IA 24/7:* Atención en menos de 1 minuto, calificación de clientes y registro automático en CRM / Agenda.\n✅ *Web Profesional PRO:* Diseño corporativo, Certificado SSL incluido, SEO para Google y enlace directo a WhatsApp.\n✅ *Garantía Real:* Infraestructura con 99.9% Uptime y soporte continuo 24/7/365.\n\nPresiona un botón para continuar:`,
+      buttons: [
+        { buttonId: "btn_pay", buttonText: "💳 Cuentas / Yape" },
+        { buttonId: "btn_start", buttonText: "🚀 Contratar Plan" },
+        { buttonId: "btn_advisor", buttonText: "👨‍💻 Asesor Directo" }
+      ],
+      stageOverride: "📄 Cotizado"
+    };
+  }
+
+  if (action === "btn_chatbot" || detectedService === "Chatbot IA 24/7") {
+    return {
+      reply: `🤖 *Chatbots & Automatización IA 24/7 — Digital MYK Lab*\n\nImplementamos asistentes inteligentes en tu WhatsApp y redes sociales para que no pierdas ni un solo cliente:\n\n✅ *Atención Inmediata 24/7:* Respuesta en menos de 1 minuto todos los días del año.\n✅ *Calificación & CRM Automático:* Registra nombre, teléfono, requerimiento y etapa comercial en tiempo real.\n✅ *Agendamiento & Pagos:* Guía al cliente con botones hasta la reserva o depósito.\n\n🎁 *Beneficio Vigente:* Al contratar tu Asistente IA 24/7, te llevas tu *Sitio Web Profesional GRATIS* _(consultar dominio/hosting)_.\n\nElige cómo continuar:`,
+      buttons: [
+        { buttonId: "btn_pay", buttonText: "💳 Cuentas / Yape" },
+        { buttonId: "btn_start", buttonText: "🚀 Iniciar Proyecto" },
+        { buttonId: "btn_advisor", buttonText: "👨‍💻 Asesor Directo" }
+      ],
+      stageOverride: "💬 En Asesoría"
+    };
+  }
+
+  if (action === "btn_app" || detectedService === "App a la Medida") {
+    return {
+      reply: `📱 *Desarrollo de Aplicaciones a la Medida — Digital MYK Lab*\n\nConstruimos la aplicación web o móvil que tu empresa necesita para tener el control operativo total:\n\n✅ *Panel de Ventas y Reportes en Tiempo Real*\n✅ *Gestión de Pedidos, Inventario, Catálogo y Clientes*\n✅ *Arquitectura Segura, Rápida y Escalable* con notificaciones automáticas\n✅ *Asesoría Gratuita, Entrega Puntual y Soporte Continuo*\n\nSelecciona una opción:`,
+      buttons: [
+        { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
+        { buttonId: "btn_start", buttonText: "🚀 Cotizar Mi App" },
+        { buttonId: "btn_advisor", buttonText: "👨‍💻 Asesor Directo" }
+      ],
+      stageOverride: "💬 En Asesoría"
+    };
+  }
+
+  if (action === "btn_web" || detectedService === "Web Profesional PRO") {
+    return {
+      reply: `🌐 *Páginas Web Profesionales de Alto Rendimiento — Digital MYK Lab*\n\nDiseñamos sitios corporativos orientados a conversión y posicionamiento en buscadores:\n\n✅ *Velocidad Ultrarrápida:* Código moderno alojado en infraestructura cloud de alto rendimiento.\n✅ *Máxima Seguridad:* Certificado SSL incluido 🔒.\n✅ *SEO Estratégico:* Optimización técnica para destacar en Google 📈.\n✅ *Conversión Directa:* Botones conectados directamente a tu WhatsApp.\n\n🔗 Portafolio oficial: https://digitalmyklab.vercel.app/\n\nSelecciona una opción:`,
+      buttons: [
+        { buttonId: "btn_combo", buttonText: "🎁 Ver Plan IA + Web" },
+        { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
+        { buttonId: "btn_advisor", buttonText: "👨‍💻 Asesor Directo" }
+      ],
+      stageOverride: "💬 En Asesoría"
+    };
+  }
+
+  // Default welcome / immediate reply to ANY word
+  return {
+    reply: `Hola${greetingName}, bienvenido a *Digital MYK Lab* — _Seguridad y Garantía_ 🛡️\n\nSomos especialistas en soluciones tecnológicas empresariales para automatizar ventas y potenciar marcas:\n\n🤖 *Chatbots & Asistentes IA 24/7*\n📱 *Aplicaciones Móviles y Web a la Medida*\n🌐 *Páginas Web Profesionales (SSL + SEO)*\n🎁 *Plan Estrella: Asistente IA 24/7 + Web Profesional GRATIS*\n\nPara facilitar tu atención, solo presiona uno de los botones de abajo 👇:`,
+    buttons: [
+      { buttonId: "btn_services", buttonText: "💼 Ver Servicios" },
+      { buttonId: "btn_combo", buttonText: "🎁 IA + Web Gratis" },
+      { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" }
+    ]
+  };
+}
+
+async function dispatchSalesInteractiveMessage(
+  chatId: string,
+  header: string,
+  body: string,
+  footer: string,
+  buttons: SalesButtonOption[]
+): Promise<{ status: string; data: any; mode: 'buttons' | 'text_fallback' }> {
+  const cleanButtons = (buttons || [])
+    .slice(0, 3)
+    .map((b, idx) => ({
+      buttonId: String(b.buttonId || `btn_${idx + 1}`).slice(0, 50),
+      buttonText: String(b.buttonText || `Opción ${idx + 1}`).slice(0, 25)
+    }));
+
+  if (cleanButtons.length > 0) {
+    const buttonsUrl = getGreenApiUrl(
+      salesGreenApiConfig.idInstance,
+      salesGreenApiConfig.apiTokenInstance,
+      "sendInteractiveButtonsReply",
+      salesGreenApiConfig.apiUrl
+    );
+    try {
+      const btnRes = await fetch(buttonsUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatId,
+          header: header.slice(0, 60),
+          body,
+          footer: footer.slice(0, 60),
+          buttons: cleanButtons
+        })
+      });
+      const btnJson: any = await btnRes.json().catch(() => ({}));
+      if (btnRes.ok && !btnJson?.error) {
+        return { status: "sent_success", data: btnJson, mode: 'buttons' };
+      }
+      console.warn("[Green-API Interactive Buttons fallback triggered]:", btnRes.status, btnJson);
+    } catch (e: any) {
+      console.warn("[Green-API Interactive Buttons network fallback]:", e.message);
+    }
+  }
+
+  // Fallback to formatted text with quick options if interactive buttons are rejected
+  const textUrl = getGreenApiUrl(
+    salesGreenApiConfig.idInstance,
+    salesGreenApiConfig.apiTokenInstance,
+    "sendMessage",
+    salesGreenApiConfig.apiUrl
+  );
+  const buttonsText = cleanButtons.length > 0
+    ? `\n\n📌 *Opciones rápidas (responde con el texto o número):*\n${cleanButtons.map((b, i) => `${i + 1}️⃣ ${b.buttonText}`).join("\n")}`
+    : "";
+  const sendRes = await fetch(textUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chatId, message: `${body}${buttonsText}` })
+  });
+  const sendJson: any = await sendRes.json().catch(() => ({}));
+  return {
+    status: sendRes.ok ? "sent_success" : `error_${sendRes.status}`,
+    data: sendJson,
+    mode: 'text_fallback'
+  };
+}
+
+// Core Engine for Line 2 (+51 929 327 654): Serious Corporate B2B Sales + Interactive Buttons
 async function processDigitalMykSalesMessage(phone: string, senderName: string, text: string) {
   const cleanText = (text || "").trim() || "Hola";
   const lowerText = cleanText.toLowerCase();
@@ -819,7 +1064,7 @@ async function processDigitalMykSalesMessage(phone: string, senderName: string, 
       chatId: sessionKey,
       phone: formattedPhone,
       name: senderName || "Prospecto WhatsApp",
-      serviceInterest: "Información General",
+      serviceInterest: "Información General de Servicios",
       history: [],
       lastActivity: new Date().toISOString()
     };
@@ -835,123 +1080,148 @@ async function processDigitalMykSalesMessage(phone: string, senderName: string, 
     session.serviceInterest = detectedService;
   }
 
-  let botReply = "";
+  const buttonAction = detectSalesButtonAction(cleanText);
+  const structuredResponse = buildProButtonResponse(buttonAction, cleanText, session.name, detectedService);
+
+  let botReply = structuredResponse.reply;
+  let replyButtons: SalesButtonOption[] = structuredResponse.buttons;
   let capturedLeadData: any = null;
 
-  const historyText = session.history
-    .slice(-8)
-    .map(h => `${h.sender === 'user' ? 'Prospecto' : 'Asesor Digital MYK Lab'}: ${h.text}`)
-    .join("\n");
+  // Use Gemini for nuanced open-ended questions when NOT clicking a predefined button / short greeting
+  const isSimpleTrigger =
+    !!buttonAction ||
+    ["hola", "info", "informacion", "información", "buenas", "buenos dias", "buenos días", "buenas tardes", "buenas noches", "menu", "menú", "1", "2", "3", "4", "5", "."].includes(lowerText) ||
+    cleanText.length <= 8;
 
-  // Always respond immediately and professionally on ANY incoming text
-  const salesPrompt = `Eres el Asesor Comercial Senior de "Digital MYK Lab" (Slogan: "Seguridad y Garantía | Innova. Automatiza. Convierte.").
-Tu canal oficial de WhatsApp comercial es +51 929 327 654.
-Web oficial: https://digitalmyklab.vercel.app/
-Correo: compumasster@gmail.com
+  if (!isSimpleTrigger) {
+    const historyText = session.history
+      .slice(-8)
+      .map(h => `${h.sender === 'user' ? 'Cliente' : 'Asesor Digital MYK Lab'}: ${h.text}`)
+      .join("\n");
 
-PORTAFOLIO OFICIAL DE SERVICIOS DE DIGITAL MYK LAB:
-1. Chatbots & Automatización con Inteligencia Artificial 24/7:
-   - Atención inmediata 24/7 (< 1 minuto de respuesta), generación de leads calificados, agendamiento automático de citas, sincronización con Google Sheets / CRM, integración con WhatsApp, Instagram, Messenger, Shopify y HubSpot.
-2. Páginas Web Profesionales de Alto Rendimiento:
-   - Código limpio a medida, servidores de altísimo rendimiento (Vercel + GitHub), carga en milisegundos, Certificado SSL incluido, SEO de alto impacto para posicionar en Google y diseño enfocado en convertir visitas en clientes.
-3. Desarrollo de Aplicaciones Móviles y Web Apps a la Medida:
-   - Apps seguras, rápidas y escalables con panel de ventas, gestión de productos, pedidos, clientes, reportes y notificaciones en tiempo real. Incluye asesoría gratuita, entrega a tiempo y soporte continuo.
-4. OFERTA ESTRELLA / COMBO IRRESISTIBLE:
-   - "Consigue tu Asistente IA 24/7 y llévate tu Sitio Web Profesional TOTALMENTE GRATIS" (*consultar por hosting/dominio externos*). Incluye 99.9% Uptime y soporte real 24/7/365.
+    const salesPrompt = `Eres el Asesor Comercial Ejecutivo de "Digital MYK Lab" (Slogan: "Seguridad y Garantía | Innova. Automatiza. Convierte.").
+Canal oficial WhatsApp: +51 929 327 654 | Web: https://digitalmyklab.vercel.app/ | Correo: compumasster@gmail.com
 
-REGLAS DE RESPUESTA PRO:
-1. Responde de INMEDIATO ante CUALQUIER palabra o mensaje que envíe el usuario, incluso si solo dice "hola", "info", ".", "precio", etc.
-2. Mantén un tono ejecutivo, persuasivo, cercano, moderno y estructurado para WhatsApp (usa negritas *así*, viñetas claras y emojis estratégicos como 🚀, 🤖, 🌐, 📱, 🎁, 🛡️).
-3. Si es el PRIMER mensaje o un saludo general, presenta de forma ordenada y atractiva los 4 servicios principales (destacando el Combo IA + Web Gratis) e invita al cliente a contar de qué trata su negocio o elegir qué servicio le interesa.
-4. Si pregunta por un servicio específico (Chatbot, Web, App u Oferta), profundiza en sus beneficios de negocio, transmite confianza ("Seguridad y Garantía") y haz una pregunta de calificación (ej. rubro del negocio, qué necesita automatizar o si desea agendar una asesoría gratuita / demo).
-5. No inventes precios cerrados falsos si no se han definido; enfócate en el valor, asesoría gratuita y cotización personalizada según el proyecto.
-6. Al final de tu respuesta, si identificas el interés o rubro del cliente, agrega en una línea oculta al final:
-[SALES_LEAD: {"clientName":"${session.name}", "serviceInterest":"...", "businessType":"...", "stage":"🔥 Nuevo Lead" | "💬 En Asesoría" | "📄 Cotizado"}]
+PORTAFOLIO OFICIAL (TONO 100% SERIO Y CORPORATIVO — NUNCA USES LA PALABRA "DEMO"):
+1. Chatbots & Automatización IA 24/7: Atención en < 1 minuto, calificación de leads, agendamiento automático y sincronización con CRM / Google Sheets.
+2. Aplicaciones Móviles y Web a la Medida: Panel de ventas, catálogo, pedidos, clientes y reportes en tiempo real. Seguras, rápidas y escalables.
+3. Páginas Web Profesionales PRO: Infraestructura de alto rendimiento (Vercel + GitHub), SSL incluido, SEO para Google y enlace directo a WhatsApp.
+4. Plan Integral: Asistente IA 24/7 + Sitio Web Profesional GRATIS (consultar dominio/hosting externos), 99.9% Uptime y soporte 24/7/365.
+
+CUENTAS OFICIALES PARA DEPÓSITOS (Titular: Maycol Castañeda):
+- Yape: 929327654
+- Plin: 921034349
+- Banco de la Nación: Cuenta 04765342509 | CCI 018-765-004765342509-81
+- Scotiabank (Cuenta Ahorro Soles): Cuenta 8330613655 | CCI 00972420833061365561
+
+REGLAS ESTRICTAS:
+1. Tono ejecutivo, serio, confiable y orientado a cierre B2B. Prohibido decir "demo" o "prueba gratuita de juguete".
+2. Si el cliente pregunta por cuentas, Yape, Plin, bancos o cómo iniciar/pagar, entrega las cuentas oficiales completas a nombre de Maycol Castañeda.
+3. Mantén la respuesta clara para WhatsApp (máximo 8-10 líneas) e indica que puede usar los botones interactivos de abajo.
+4. Agrega al final en línea oculta:
+[SALES_LEAD: {"clientName":"${session.name}", "serviceInterest":"...", "businessType":"...", "stage":"💬 En Asesoría" | "📄 Cotizado" | "💳 Pago / Cierre"}]
 
 Historial reciente:
 ${historyText || "(Primera interacción)"}
 
-Mensaje actual del prospecto (${session.name} - ${formattedPhone}):
+Mensaje actual del cliente (${session.name} - ${formattedPhone}):
 "${cleanText}"`;
 
-  let rawAiReply = await generateAiText(salesPrompt);
-
-  if (rawAiReply) {
-    const leadMatch = rawAiReply.match(/\[SALES_LEAD:\s*(\{.*?\})\]/s);
-    if (leadMatch) {
-      try {
-        capturedLeadData = JSON.parse(leadMatch[1]);
-      } catch (e) {}
-      rawAiReply = rawAiReply.replace(/\[SALES_LEAD:\s*\{.*?\}\]/gs, "").trim();
+    let rawAiReply = await generateAiText(salesPrompt);
+    if (rawAiReply) {
+      const leadMatch = rawAiReply.match(/\[SALES_LEAD:\s*(\{.*?\})\]/s);
+      if (leadMatch) {
+        try {
+          capturedLeadData = JSON.parse(leadMatch[1]);
+        } catch (e) {}
+        rawAiReply = rawAiReply.replace(/\[SALES_LEAD:\s*\{.*?\}\]/gs, "").trim();
+      }
+      botReply = rawAiReply;
+      replyButtons = [
+        { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
+        { buttonId: "btn_combo", buttonText: "🎁 Oferta IA + Web" },
+        { buttonId: "btn_advisor", buttonText: "👨‍💻 Asesor Directo" }
+      ];
     }
-    botReply = rawAiReply;
-  } else {
-    botReply = buildProFallbackSalesReply(cleanText, session.name, isFirstMessage, detectedService);
   }
 
-  // Upsert Lead in salesLeads store so it appears immediately in the dashboard
+  // Push messages to session history first so full transcript is saved in CRM PRO
+  const nowIso = new Date().toISOString();
+  session.history.push({ sender: 'user', text: cleanText, timestamp: nowIso });
+  session.history.push({ sender: 'bot', text: botReply, timestamp: nowIso });
+  session.lastActivity = nowIso;
+
+  // Upsert Lead in CRM PRO salesLeads store
   const leadIndex = salesLeads.findIndex(l => l.whatsapp.replace(/[^0-9]/g, "") === sessionKey);
-  const serviceToSave = capturedLeadData?.serviceInterest || session.serviceInterest || detectedService;
-  const businessToSave = capturedLeadData?.businessType || session.businessType || "Por calificar";
-  const statusToSave = capturedLeadData?.stage || (leadIndex >= 0 ? "💬 En Asesoría" : "🔥 Nuevo Lead");
+  const existingLead = leadIndex >= 0 ? salesLeads[leadIndex] : null;
+
+  const serviceToSave =
+    capturedLeadData?.serviceInterest ||
+    (session.serviceInterest && session.serviceInterest !== "Información General de Servicios" ? session.serviceInterest : null) ||
+    existingLead?.serviceInterest ||
+    detectedService;
+
+  const businessToSave = capturedLeadData?.businessType || session.businessType || existingLead?.businessType || "Por calificar";
+  const statusToSave =
+    structuredResponse.stageOverride ||
+    capturedLeadData?.stage ||
+    (existingLead ? existingLead.status : "🔥 Nuevo Lead");
+
+  const existingHistory = Array.isArray(existingLead?.history) ? existingLead.history : [];
+  const updatedHistory = [
+    ...existingHistory,
+    { sender: 'user', text: cleanText, timestamp: nowIso },
+    { sender: 'bot', text: botReply, timestamp: nowIso, buttons: replyButtons }
+  ].slice(-30);
 
   const leadPayload = {
-    id: leadIndex >= 0 ? salesLeads[leadIndex].id : `lead_${Date.now()}`,
+    id: existingLead ? existingLead.id : `lead_${Date.now()}`,
     registrationDate: new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
-    clientName: capturedLeadData?.clientName || session.name || "Prospecto WhatsApp",
+    clientName: capturedLeadData?.clientName || session.name || existingLead?.clientName || "Prospecto WhatsApp",
     whatsapp: formattedPhone,
     serviceInterest: serviceToSave,
     businessType: businessToSave,
-    lastMessage: cleanText.slice(0, 120),
+    lastMessage: cleanText.slice(0, 140),
     status: statusToSave,
-    notes: "Atendido automáticamente por Bot Comercial Digital MYK Lab (+51 929 327 654)"
+    estimatedValue: existingLead?.estimatedValue || getDefaultEstimatedValue(serviceToSave),
+    paymentMethod: structuredResponse.paymentMethodOverride || existingLead?.paymentMethod || "Por definir",
+    paymentStatus: structuredResponse.paymentStatusOverride || existingLead?.paymentStatus || "Pendiente",
+    priority: statusToSave === "💳 Pago / Cierre" || statusToSave === "📄 Cotizado" ? "Alta" : (existingLead?.priority || "Media"),
+    notes: existingLead?.notes || "Atención comercial automatizada Digital MYK Lab (+51 929 327 654)",
+    history: updatedHistory
   };
 
   if (leadIndex >= 0) {
-    salesLeads[leadIndex] = { ...salesLeads[leadIndex], ...leadPayload };
+    salesLeads[leadIndex] = { ...existingLead, ...leadPayload };
   } else {
     salesLeads.unshift(leadPayload);
   }
   saveStoredSalesLeads();
 
-  session.history.push({ sender: 'user', text: cleanText, timestamp: new Date().toISOString() });
-  session.history.push({ sender: 'bot', text: botReply, timestamp: new Date().toISOString() });
-  session.lastActivity = new Date().toISOString();
-
-  // Send out via Line 2 Green-API if configured
+  // Send out via Line 2 Green-API using Interactive Buttons + automatic fallback
   let greenApiSendStatus = "not_sent";
   if (salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance && sessionKey.length >= 7) {
     const cleanPhone = formattedPhone.replace(/[^0-9]/g, "");
     const chatId = `${cleanPhone}@c.us`;
-    const targetUrl = getGreenApiUrl(salesGreenApiConfig.idInstance, salesGreenApiConfig.apiTokenInstance, "sendMessage", salesGreenApiConfig.apiUrl);
-
     try {
-      const sendRes = await fetch(targetUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chatId, message: botReply })
-      });
-      const sendJson: any = await sendRes.json().catch(() => ({}));
-      if (sendRes.ok) {
-        greenApiSendStatus = "sent_success";
-        addGreenApiLog({
-          type: 'outgoing_send',
-          phone: formattedPhone,
-          sender: session.name,
-          text: botReply.slice(0, 120) + (botReply.length > 120 ? "..." : ""),
-          status: '🟢 Respuesta PRO Enviada (929 327 654)',
-          details: sendJson
-        }, 'sales');
-      } else {
-        greenApiSendStatus = `error_${sendRes.status}`;
-        addGreenApiLog({
-          type: 'error',
-          phone: formattedPhone,
-          sender: session.name,
-          status: `🔴 Error HTTP ${sendRes.status}: ${sendJson?.message || 'Fallo de envío'}`,
-          details: sendJson
-        }, 'sales');
-      }
+      const dispatch = await dispatchSalesInteractiveMessage(
+        chatId,
+        "Digital MYK Lab • Atención Comercial",
+        botReply,
+        "Seguridad y Garantía • digitalmyklab.vercel.app",
+        replyButtons
+      );
+      greenApiSendStatus = dispatch.status;
+      addGreenApiLog({
+        type: dispatch.status === "sent_success" ? 'outgoing_send' : 'error',
+        phone: formattedPhone,
+        sender: session.name,
+        text: botReply.slice(0, 120) + (botReply.length > 120 ? "..." : ""),
+        status: dispatch.status === "sent_success"
+          ? (dispatch.mode === 'buttons' ? '🟢 Botones Interactivos Enviados (929 327 654)' : '🟢 Respuesta PRO Enviada (929 327 654)')
+          : `🔴 Error Envío (${dispatch.status})`,
+        details: dispatch.data
+      }, 'sales');
     } catch (err: any) {
       greenApiSendStatus = "network_error";
       addGreenApiLog({
@@ -966,6 +1236,7 @@ Mensaje actual del prospecto (${session.name} - ${formattedPhone}):
 
   return {
     reply: botReply,
+    buttons: replyButtons,
     lead: leadPayload,
     actionTriggered: "SALES_LEAD_UPSERT",
     greenApiSendStatus,
@@ -1562,7 +1833,8 @@ app.post("/api/green-api/sales/set-queue-mode", async (req, res) => {
       body: JSON.stringify({
         webhookUrl: "",
         incomingWebhook: "yes",
-        outgoingMessageWebhook: "yes",
+        outgoingMessageWebhook: "no",
+        pollMessageWebhook: "yes",
         stateWebhook: "yes"
       })
     });
@@ -1622,7 +1894,8 @@ app.post("/api/green-api/sales/set-webhook-url", async (req, res) => {
       body: JSON.stringify({
         webhookUrl: webhookUrl,
         incomingWebhook: "yes",
-        outgoingMessageWebhook: "yes",
+        outgoingMessageWebhook: "no",
+        pollMessageWebhook: "yes",
         stateWebhook: "yes"
       })
     });
@@ -1744,36 +2017,31 @@ app.post("/api/green-api/sales/webhook", async (req, res) => {
     salesGreenApiConfig.lastWebhookReceived = new Date().toISOString();
     const typeWebhook = body.typeWebhook || "";
 
-    if (typeWebhook === "incomingMessageReceived" || body.messageData) {
+    const isIncomingSalesMsg = typeWebhook === "incomingMessageReceived" || (!typeWebhook && !!body.messageData);
+    if (isIncomingSalesMsg) {
       const senderData = body.senderData || {};
       const messageData = body.messageData || {};
       const rawSender = senderData.sender || senderData.chatId || "";
+      const isGroupOrStatus = rawSender.endsWith("@g.us") || rawSender === "status@broadcast";
       const senderPhone = rawSender.replace(/@.*$/, "");
       const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Prospecto WhatsApp";
 
-      let textMessage = "";
-      if (messageData.typeMessage === "textMessage") {
-        textMessage = messageData.textMessageData?.textMessage || "";
-      } else if (messageData.typeMessage === "extendedTextMessage") {
-        textMessage = messageData.extendedTextMessageData?.text || "";
-      } else if (messageData.typeMessage === "quotedMessage") {
-        textMessage = messageData.extendedTextMessageData?.text || messageData.quotedMessage?.text || "";
-      } else if (typeof messageData.textMessage === "string") {
-        textMessage = messageData.textMessage;
-      }
+      if (!isGroupOrStatus && senderPhone) {
+        const textMessage = extractGreenApiMessageText(messageData, rawSender);
 
-      addGreenApiLog({
-        type: 'incoming_webhook',
-        phone: senderPhone,
-        sender: senderName,
-        text: textMessage || `[${messageData.typeMessage || 'Mensaje'}]`,
-        status: textMessage ? '📥 Mensaje Recibido (Línea Ventas 929 327 654)' : '⚠️ Mensaje sin texto',
-        details: body
-      }, 'sales');
+        addGreenApiLog({
+          type: 'incoming_webhook',
+          phone: senderPhone,
+          sender: senderName,
+          text: textMessage || `[${messageData.typeMessage || 'Mensaje'}]`,
+          status: textMessage ? '📥 Mensaje Recibido (Línea Ventas 929 327 654)' : '⚠️ Mensaje sin texto',
+          details: body
+        }, 'sales');
 
-      if (textMessage && senderPhone) {
-        const result = await processDigitalMykSalesMessage(senderPhone, senderName, textMessage);
-        return res.json({ status: "processed", result });
+        if (textMessage) {
+          const result = await processDigitalMykSalesMessage(senderPhone, senderName, textMessage);
+          return res.json({ status: "processed", result });
+        }
       }
     }
     res.json({ status: "ok", received: true });
@@ -2030,43 +2298,38 @@ app.post(["/api/green-api/webhook", "/api/webhooks/green-api"], async (req, res)
 
     const typeWebhook = body.typeWebhook || "";
 
-    // Check if it is an incoming message
-    if (typeWebhook === "incomingMessageReceived" || body.messageData) {
+    // Check if it is an incoming customer message (ignore outgoingMessageReceived / outgoingAPIMessageReceived / groups)
+    const isIncomingCustomerMsg = typeWebhook === "incomingMessageReceived" || (!typeWebhook && !!body.messageData);
+    if (isIncomingCustomerMsg) {
       const senderData = body.senderData || {};
       const messageData = body.messageData || {};
 
       const rawSender = senderData.sender || senderData.chatId || "";
+      const isGroupOrStatus = rawSender.endsWith("@g.us") || rawSender === "status@broadcast";
       const senderPhone = rawSender.replace(/@.*$/, "");
       const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Cliente WhatsApp";
 
-      let textMessage = "";
-      if (messageData.typeMessage === "textMessage") {
-        textMessage = messageData.textMessageData?.textMessage || "";
-      } else if (messageData.typeMessage === "extendedTextMessage") {
-        textMessage = messageData.extendedTextMessageData?.text || "";
-      } else if (messageData.typeMessage === "quotedMessage") {
-        textMessage = messageData.extendedTextMessageData?.text || messageData.quotedMessage?.text || "";
-      } else if (typeof messageData.textMessage === "string") {
-        textMessage = messageData.textMessage;
-      }
+      if (!isGroupOrStatus && senderPhone) {
+        const textMessage = extractGreenApiMessageText(messageData, rawSender);
 
-      addGreenApiLog({
-        type: 'incoming_webhook',
-        phone: senderPhone,
-        sender: senderName,
-        text: textMessage || `[${messageData.typeMessage || 'Mensaje Multimedia'}]`,
-        status: textMessage
-          ? (isSalesInstance ? '📥 Mensaje Recibido (Línea Ventas 929 327 654)' : '📥 Mensaje Recibido de WhatsApp')
-          : '⚠️ Mensaje sin texto reconocible',
-        details: body
-      }, isSalesInstance ? 'sales' : 'demos');
+        addGreenApiLog({
+          type: 'incoming_webhook',
+          phone: senderPhone,
+          sender: senderName,
+          text: textMessage || `[${messageData.typeMessage || 'Mensaje Multimedia'}]`,
+          status: textMessage
+            ? (isSalesInstance ? '📥 Mensaje Recibido (Línea Ventas 929 327 654)' : '📥 Mensaje Recibido de WhatsApp')
+            : '⚠️ Mensaje sin texto reconocible',
+          details: body
+        }, isSalesInstance ? 'sales' : 'demos');
 
-      if (textMessage && senderPhone) {
-        console.log(`[Green-API Message Incoming] [${isSalesInstance ? 'SALES' : 'DEMOS'}] De: ${senderName} (${senderPhone}): "${textMessage}"`);
-        const result = isSalesInstance
-          ? await processDigitalMykSalesMessage(senderPhone, senderName, textMessage)
-          : await processDemoMessage(senderPhone, senderName, textMessage);
-        return res.json({ status: "processed", result });
+        if (textMessage) {
+          console.log(`[Green-API Message Incoming] [${isSalesInstance ? 'SALES' : 'DEMOS'}] De: ${senderName} (${senderPhone}): "${textMessage}"`);
+          const result = isSalesInstance
+            ? await processDigitalMykSalesMessage(senderPhone, senderName, textMessage)
+            : await processDemoMessage(senderPhone, senderName, textMessage);
+          return res.json({ status: "processed", result });
+        }
       }
     } else {
       addGreenApiLog({
@@ -2143,21 +2406,37 @@ app.post("/api/sales/update-status", (req, res) => {
   res.json({ success: true, salesLeads });
 });
 
+app.post("/api/sales/update-lead", (req, res) => {
+  const { id, updates } = req.body;
+  if (!id || !updates) {
+    return res.status(400).json({ error: "id y updates son requeridos" });
+  }
+  salesLeads = salesLeads.map(l => l.id === id ? { ...l, ...updates } : l);
+  saveStoredSalesLeads();
+  res.json({ success: true, salesLeads });
+});
+
 app.post("/api/sales/add-lead", (req, res) => {
   const lead = req.body;
   if (!lead || !lead.clientName) {
     return res.status(400).json({ error: "Datos del prospecto requeridos" });
   }
+  const serviceInterest = lead.serviceInterest || "Combo Asistente IA + Web Gratis";
   const newLead = {
     id: lead.id || `lead_${Date.now()}`,
     registrationDate: lead.registrationDate || new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
     clientName: lead.clientName,
     whatsapp: lead.whatsapp || "+51 9",
-    serviceInterest: lead.serviceInterest || "Combo Asistente IA + Web Gratis",
+    serviceInterest,
     businessType: lead.businessType || "Por calificar",
     lastMessage: lead.lastMessage || "Ingreso manual",
     status: lead.status || "🔥 Nuevo Lead",
-    notes: lead.notes || "Agregado manualmente desde el panel comercial"
+    estimatedValue: lead.estimatedValue !== undefined ? Number(lead.estimatedValue) : getDefaultEstimatedValue(serviceInterest),
+    paymentMethod: lead.paymentMethod || "Por definir",
+    paymentStatus: lead.paymentStatus || "Pendiente",
+    priority: lead.priority || "Alta",
+    notes: lead.notes || "Registrado en CRM PRO Digital MYK Lab",
+    history: lead.history || []
   };
   salesLeads.unshift(newLead);
   saveStoredSalesLeads();

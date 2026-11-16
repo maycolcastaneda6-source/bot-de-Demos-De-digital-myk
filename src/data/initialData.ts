@@ -471,35 +471,35 @@ export const initialCannedResponses: CannedResponse[] = [
 export const leadScenarios: QuickLeadScenario[] = [
   {
     id: 'sc_sales_any',
-    title: '🚀 Digital MYK (929 327 654): Respuesta Inmediata a "Hola"',
+    title: '🚀 Digital MYK (929 327 654): Primer Contacto ("Hola")',
     channel: 'whatsapp',
     senderName: 'Luis Navarro',
     senderPhone: '+51 944 888 111',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
     message: 'Hola',
-    category: 'Ventas Digital MYK Lab',
+    category: 'Digital MYK Lab Oficial',
     targetLine: 'sales'
   },
   {
     id: 'sc_sales_combo',
-    title: '🎁 Digital MYK (929 327 654): Oferta IA + Web Gratis',
+    title: '🎁 Digital MYK (929 327 654): Plan IA + Web Profesional',
     channel: 'whatsapp',
     senderName: 'Claudia Torres',
     senderPhone: '+51 955 777 222',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    message: 'Info sobre la oferta de asistente IA con página web gratis',
-    category: 'Ventas Digital MYK Lab',
+    message: 'Me interesa el Asistente IA 24/7 con Sitio Web Profesional',
+    category: 'Digital MYK Lab Oficial',
     targetLine: 'sales'
   },
   {
-    id: 'sc_sales_app',
-    title: '📱 Digital MYK (929 327 654): Cotizar App o Web',
+    id: 'sc_sales_pay',
+    title: '💳 Digital MYK (929 327 654): Consultar Yape / Plin / Bancos',
     channel: 'whatsapp',
     senderName: 'Marco Polo',
     senderPhone: '+51 966 333 444',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
-    message: 'Quiero una web profesional y una app para mi negocio',
-    category: 'Ventas Digital MYK Lab',
+    message: 'Quiero iniciar mi proyecto hoy, ¿cuáles son sus cuentas de pago o Yape?',
+    category: 'Digital MYK Lab Oficial',
     targetLine: 'sales'
   },
   {

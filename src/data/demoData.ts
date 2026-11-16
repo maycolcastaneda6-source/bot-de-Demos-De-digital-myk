@@ -115,9 +115,13 @@ export const initialSalesLeads: SalesLead[] = [
     whatsapp: '+51 945112233',
     serviceInterest: 'Combo Asistente IA + Web Gratis',
     businessType: 'Clínica Dental',
-    lastMessage: 'Vi el anuncio de asistente IA + web gratis, quiero info',
-    status: '🔥 Nuevo Lead',
-    notes: 'Atendido automáticamente por Bot Comercial Digital MYK Lab'
+    lastMessage: 'Quisiera contratar el plan de Asistente IA + Web, me envían las cuentas de Yape?',
+    status: '💳 Pago / Cierre',
+    estimatedValue: 1490,
+    paymentMethod: 'Yape (929327654)',
+    paymentStatus: 'Por Verificar',
+    priority: 'Alta',
+    notes: 'Solicitó cuentas oficiales a nombre de Maycol Castañeda para separar proyecto'
   },
   {
     id: 'lead_2',
@@ -125,9 +129,28 @@ export const initialSalesLeads: SalesLead[] = [
     clientName: 'Mariana Quispe',
     whatsapp: '+51 981223344',
     serviceInterest: 'App a la Medida',
-    businessType: 'Tienda de Pedidos / Delivery',
-    lastMessage: 'Necesito una app para gestionar pedidos de mi negocio',
-    status: '💬 En Asesoría',
-    notes: 'Solicitó demostración de panel de pedidos y reportes'
+    businessType: 'Distribuidora & Delivery',
+    lastMessage: 'Necesito una app para gestionar pedidos, stock y reportes en tiempo real',
+    status: '📄 Cotizado',
+    estimatedValue: 2800,
+    paymentMethod: 'Scotiabank Ahorro Soles',
+    paymentStatus: 'Pendiente',
+    priority: 'Alta',
+    notes: 'Propuesta técnica enviada • Solicita panel administrativo + notificaciones'
+  },
+  {
+    id: 'lead_3',
+    registrationDate: 'Ayer 04:20 PM',
+    clientName: 'Carlos Villacorta',
+    whatsapp: '+51 974332211',
+    serviceInterest: 'Web Profesional PRO',
+    businessType: 'Estudio Contable Corporativo',
+    lastMessage: 'Excelente, ya realicé la transferencia al CCI de Scotiabank',
+    status: '✅ Cerrado',
+    estimatedValue: 950,
+    paymentMethod: 'Scotiabank CCI',
+    paymentStatus: 'Confirmado',
+    priority: 'Media',
+    notes: 'Abono confirmado • En etapa de diseño e integración SSL + SEO'
   }
 ];
