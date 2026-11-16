@@ -39,7 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'demos' as ActiveView,
       label: 'Módulos de Negocio',
-      sublabel: 'Salud & Belleza en Vivo',
+      sublabel: 'Demos & Ventas MYK Lab',
       icon: Sparkles,
       badge: 'PRO',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold'
@@ -70,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'channels' as ActiveView,
       label: 'Canales & Green-API',
-      sublabel: 'WhatsApp +51 986 150 562',
+      sublabel: '2 Líneas WA + Redes',
       icon: Radio,
       badge: `${channels.filter(c => c.status === 'connected').length}/${channels.length}`,
       badgeColor: 'bg-slate-800 text-slate-400 border border-slate-700'

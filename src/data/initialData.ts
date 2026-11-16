@@ -470,53 +470,69 @@ export const initialCannedResponses: CannedResponse[] = [
 
 export const leadScenarios: QuickLeadScenario[] = [
   {
-    id: 'sc_menu',
-    title: '📱 Menú Principal de Demostraciones',
+    id: 'sc_sales_any',
+    title: '🚀 Digital MYK (929 327 654): Respuesta Inmediata a "Hola"',
     channel: 'whatsapp',
-    senderName: 'Maycol / Geancarlos (Cliente)',
+    senderName: 'Luis Navarro',
+    senderPhone: '+51 944 888 111',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    message: 'Hola',
+    category: 'Ventas Digital MYK Lab',
+    targetLine: 'sales'
+  },
+  {
+    id: 'sc_sales_combo',
+    title: '🎁 Digital MYK (929 327 654): Oferta IA + Web Gratis',
+    channel: 'whatsapp',
+    senderName: 'Claudia Torres',
+    senderPhone: '+51 955 777 222',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    message: 'Info sobre la oferta de asistente IA con página web gratis',
+    category: 'Ventas Digital MYK Lab',
+    targetLine: 'sales'
+  },
+  {
+    id: 'sc_sales_app',
+    title: '📱 Digital MYK (929 327 654): Cotizar App o Web',
+    channel: 'whatsapp',
+    senderName: 'Marco Polo',
+    senderPhone: '+51 966 333 444',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    message: 'Quiero una web profesional y una app para mi negocio',
+    category: 'Ventas Digital MYK Lab',
+    targetLine: 'sales'
+  },
+  {
+    id: 'sc_menu',
+    title: '📱 Línea Demos (986 150 562): Menú Principal',
+    channel: 'whatsapp',
+    senderName: 'Maycol / Cliente',
     senderPhone: '+51 987 654 321',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     message: 'Hola',
-    category: 'Menú Digital MYK Lab'
+    category: 'Menú Digital MYK Lab',
+    targetLine: 'demos'
   },
   {
     id: 'sc_dental',
-    title: '🦷 Opción 1: Demo Odontología (Plan Esencial S/ 490)',
+    title: '🦷 Línea Demos (986 150 562): Opción 1 Odontología',
     channel: 'whatsapp',
     senderName: 'Carlos Mendoza',
     senderPhone: '+51 987 654 321',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
     message: '1',
-    category: 'Odontología Sonrisas VIP'
-  },
-  {
-    id: 'sc_beauty',
-    title: '💅 Opción 2: Demo Centro de Belleza (Plan PRO S/ 890)',
-    channel: 'whatsapp',
-    senderName: 'Andrea Benítez',
-    senderPhone: '+51 966 223 344',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    message: '2',
-    category: 'Glow Belleza IA Mía'
+    category: 'Odontología Sonrisas VIP',
+    targetLine: 'demos'
   },
   {
     id: 'sc_beauty_natural',
-    title: '🌸 Preguntar a Mía por Alisado y Cita (Lenguaje Natural)',
+    title: '🌸 Línea Demos (986 150 562): Mía IA Belleza',
     channel: 'whatsapp',
     senderName: 'Valeria Morales',
     senderPhone: '+51 977 112 233',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     message: 'Hola! Cuánto cuesta el alisado con queratina y tienen espacio mañana en la tarde?',
-    category: 'Glow Belleza IA Mía'
-  },
-  {
-    id: 'sc_dental_data',
-    title: '🦷 Enviar Datos para Limpieza Dental',
-    channel: 'whatsapp',
-    senderName: 'Roberto Sánchez',
-    senderPhone: '+51 955 443 322',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
-    message: 'Roberto Sánchez, Mañana a las 5:00 PM para Blanqueamiento',
-    category: 'Odontología Sonrisas VIP'
+    category: 'Glow Belleza IA Mía',
+    targetLine: 'demos'
   }
 ];

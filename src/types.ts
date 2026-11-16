@@ -163,6 +163,20 @@ export interface GreenApiConfig {
   connectedPhone: string;
   status: 'connected' | 'disconnected' | 'testing';
   lastPing?: string;
+  pollingEnabled?: boolean;
+  autoRespondAll?: boolean;
+}
+
+export interface SalesLead {
+  id: string;
+  registrationDate: string;
+  clientName: string;
+  whatsapp: string;
+  serviceInterest: string;
+  businessType?: string;
+  lastMessage: string;
+  status: '🔥 Nuevo Lead' | '💬 En Asesoría' | '📄 Cotizado' | '✅ Cerrado';
+  notes?: string;
 }
 
 export interface QuickLeadScenario {
@@ -174,6 +188,7 @@ export interface QuickLeadScenario {
   avatar: string;
   message: string;
   category: string;
+  targetLine?: 'demos' | 'sales';
 }
 
 export type DemoType = 'none' | 'menu' | 'dental' | 'beauty';

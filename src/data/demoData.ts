@@ -1,4 +1,4 @@
-import { DentalAppointment, BeautyAppointment, GreenApiConfig } from '../types';
+import { DentalAppointment, BeautyAppointment, GreenApiConfig, SalesLead } from '../types';
 
 export const initialDentalAppointments: DentalAppointment[] = [
   {
@@ -91,5 +91,43 @@ export const initialGreenApiConfig: GreenApiConfig = {
   webhookUrl: '/api/green-api/webhook',
   connectedPhone: '+51 986 150 562',
   status: 'connected',
-  lastPing: 'En línea y recibiendo webhooks'
+  lastPing: 'En línea y recibiendo webhooks',
+  pollingEnabled: true
 };
+
+export const initialSalesGreenApiConfig: GreenApiConfig = {
+  idInstance: '',
+  apiTokenInstance: '',
+  apiUrl: 'https://api.greenapi.com',
+  webhookUrl: '/api/green-api/sales/webhook',
+  connectedPhone: '+51 929 327 654',
+  status: 'disconnected',
+  lastPing: 'Listo para vincular instancia Green-API',
+  pollingEnabled: true,
+  autoRespondAll: true
+};
+
+export const initialSalesLeads: SalesLead[] = [
+  {
+    id: 'lead_1',
+    registrationDate: 'Hoy 09:15 AM',
+    clientName: 'Jorge Paredes',
+    whatsapp: '+51 945112233',
+    serviceInterest: 'Combo Asistente IA + Web Gratis',
+    businessType: 'Clínica Dental',
+    lastMessage: 'Vi el anuncio de asistente IA + web gratis, quiero info',
+    status: '🔥 Nuevo Lead',
+    notes: 'Atendido automáticamente por Bot Comercial Digital MYK Lab'
+  },
+  {
+    id: 'lead_2',
+    registrationDate: 'Hoy 11:40 AM',
+    clientName: 'Mariana Quispe',
+    whatsapp: '+51 981223344',
+    serviceInterest: 'App a la Medida',
+    businessType: 'Tienda de Pedidos / Delivery',
+    lastMessage: 'Necesito una app para gestionar pedidos de mi negocio',
+    status: '💬 En Asesoría',
+    notes: 'Solicitó demostración de panel de pedidos y reportes'
+  }
+];

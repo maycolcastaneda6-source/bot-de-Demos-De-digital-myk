@@ -20,7 +20,9 @@ import {
 import {
   initialDentalAppointments,
   initialBeautyAppointments,
-  initialGreenApiConfig
+  initialGreenApiConfig,
+  initialSalesGreenApiConfig,
+  initialSalesLeads
 } from './data/demoData';
 import { 
   Conversation, 
@@ -33,7 +35,8 @@ import {
   Message,
   DentalAppointment,
   BeautyAppointment,
-  GreenApiConfig
+  GreenApiConfig,
+  SalesLead
 } from './types';
 import { LiveDemosHubView } from './components/LiveDemosHubView';
 
@@ -90,11 +93,22 @@ export default function App() {
     return saved ? JSON.parse(saved) : initialGreenApiConfig;
   });
 
+  const [salesGreenApiConfig, setSalesGreenApiConfig] = useState<GreenApiConfig>(() => {
+    const saved = localStorage.getItem('omniflow_sales_greenapi_config');
+    return saved ? JSON.parse(saved) : initialSalesGreenApiConfig;
+  });
+
+  const [salesLeads, setSalesLeads] = useState<SalesLead[]>(() => {
+    const saved = localStorage.getItem('omniflow_sales_leads');
+    return saved ? JSON.parse(saved) : initialSalesLeads;
+  });
+
   // UI State
   const [activeView, setActiveView] = useState<ActiveView>('demos');
   const [selectedId, setSelectedId] = useState<string>(conversations[0]?.id || 'conv_1');
   const [isCRMDrawerOpen, setIsCRMDrawerOpen] = useState(true);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [simulatorTargetLine, setSimulatorTargetLine] = useState<'demos' | 'sales'>('demos');
   const [isCannedModalOpen, setIsCannedModalOpen] = useState(false);
   const [isNewConvModalOpen, setIsNewConvModalOpen] = useState(false);
   const [cannedInsertText, setCannedInsertText] = useState<string>('');
@@ -132,6 +146,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('omniflow_greenapi_config', JSON.stringify(greenApiConfig));
   }, [greenApiConfig]);
+
+  useEffect(() => {
+    localStorage.setItem('omniflow_sales_greenapi_config', JSON.stringify(salesGreenApiConfig));
+  }, [salesGreenApiConfig]);
+
+  useEffect(() => {
+    localStorage.setItem('omniflow_sales_leads', JSON.stringify(salesLeads));
+  }, [salesLeads]);
 
   // Active selected conversation
   const selectedConversation = conversations.find(c => c.id === selectedId) || conversations[0];
@@ -244,7 +266,8 @@ export default function App() {
     senderName: string,
     senderPhone: string,
     avatar: string,
-    messageText: string
+    messageText: string,
+    targetLine: 'demos' | 'sales' = 'demos'
   ): Promise<string | void> => {
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
@@ -328,8 +351,26 @@ export default function App() {
       try {
         let botReplyText = '¡Hola! Gracias por comunicarte con nosotros.';
 
-        // For WhatsApp, route through the dual-demo engine (Odonto S/490 & Belleza S/890)
-        if (channel === 'whatsapp') {
+        // For WhatsApp, route either to Line 2 (Digital MYK Sales 929 327 654) or Line 1 (Demos 986 150 562)
+        if (channel === 'whatsapp' && targetLine === 'sales') {
+          const salesRes = await fetch('/api/sales/process-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phone: senderPhone,
+              senderName: senderName,
+              message: messageText
+            })
+          });
+          const salesData = await salesRes.json();
+          botReplyText = salesData.reply || botReplyText;
+          if (salesData.lead) {
+            setSalesLeads(prev => {
+              const filtered = prev.filter(l => l.id !== salesData.lead.id);
+              return [salesData.lead, ...filtered];
+            });
+          }
+        } else if (channel === 'whatsapp') {
           const demoRes = await fetch('/api/demo/process-message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -409,8 +450,14 @@ export default function App() {
         if (Array.isArray(data.beautyAppointments) && data.beautyAppointments.length > 0) {
           setBeautyAppointments(data.beautyAppointments);
         }
+        if (Array.isArray(data.salesLeads) && data.salesLeads.length > 0) {
+          setSalesLeads(data.salesLeads);
+        }
         if (data.greenApiConfig) {
           setGreenApiConfig(prev => ({ ...prev, ...data.greenApiConfig }));
+        }
+        if (data.salesGreenApiConfig) {
+          setSalesGreenApiConfig(prev => ({ ...prev, ...data.salesGreenApiConfig }));
         }
       }
     } catch (e) {
@@ -424,7 +471,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [syncServerDemoData]);
 
-  // Demo Appointment Handlers
+  // Demo & Sales Handlers
   const handleUpdateDentalStatus = (id: string, status: DentalAppointment['status']) => {
     setDentalAppointments(prev => prev.map(d => d.id === id ? { ...d, status } : d));
     fetch('/api/demo/dental/update-status', {
@@ -443,6 +490,24 @@ export default function App() {
     }).catch(console.error);
   };
 
+  const handleUpdateSalesLeadStatus = (id: string, status: SalesLead['status']) => {
+    setSalesLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l));
+    fetch('/api/sales/update-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status })
+    }).catch(console.error);
+  };
+
+  const handleAddSalesLead = (lead: SalesLead) => {
+    setSalesLeads(prev => [lead, ...prev]);
+    fetch('/api/sales/add-lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lead)
+    }).catch(console.error);
+  };
+
   const handleAddDentalAppointment = (app: DentalAppointment) => {
     setDentalAppointments(prev => [app, ...prev]);
   };
@@ -454,6 +519,15 @@ export default function App() {
   const handleUpdateGreenApiConfig = (cfg: Partial<GreenApiConfig>) => {
     setGreenApiConfig(prev => ({ ...prev, ...cfg }));
     fetch('/api/green-api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cfg)
+    }).catch(console.error);
+  };
+
+  const handleUpdateSalesGreenApiConfig = (cfg: Partial<GreenApiConfig>) => {
+    setSalesGreenApiConfig(prev => ({ ...prev, ...cfg }));
+    fetch('/api/green-api/sales/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(cfg)
@@ -549,21 +623,20 @@ export default function App() {
           <LiveDemosHubView
             dentalAppointments={dentalAppointments}
             beautyAppointments={beautyAppointments}
+            salesLeads={salesLeads}
             greenApiConfig={greenApiConfig}
+            salesGreenApiConfig={salesGreenApiConfig}
             onUpdateDentalStatus={handleUpdateDentalStatus}
             onUpdateBeautyStatus={handleUpdateBeautyStatus}
+            onUpdateSalesLeadStatus={handleUpdateSalesLeadStatus}
             onAddDentalAppointment={handleAddDentalAppointment}
             onAddBeautyAppointment={handleAddBeautyAppointment}
+            onAddSalesLead={handleAddSalesLead}
             onUpdateGreenApiConfig={handleUpdateGreenApiConfig}
-            onOpenSimulator={() => setIsSimulatorOpen(true)}
-            onSimulateWhatsAppMessage={(senderPhone, senderName, text) => {
-              handleSimulatedIncomingMessage(
-                'whatsapp',
-                senderName,
-                senderPhone,
-                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-                text
-              );
+            onUpdateSalesGreenApiConfig={handleUpdateSalesGreenApiConfig}
+            onOpenSimulator={(line = 'demos') => {
+              setSimulatorTargetLine(line);
+              setIsSimulatorOpen(true);
             }}
           />
         )}
@@ -621,6 +694,7 @@ export default function App() {
       <SimulatorModal
         isOpen={isSimulatorOpen}
         onClose={() => setIsSimulatorOpen(false)}
+        initialTargetLine={simulatorTargetLine}
         onSendSimulatedMessage={handleSimulatedIncomingMessage}
       />
 

@@ -38,7 +38,7 @@ async function generateAiText(prompt: string): Promise<string | null> {
   const ai = getAiClient();
   if (!ai) return null;
 
-  const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.7-flash"];
+  const modelsToTry = ["gemini-4-hydrogen", "gemini-3.1-flash-lite"];
   for (const modelName of modelsToTry) {
     try {
       const response = await ai.models.generateContent({
@@ -105,7 +105,7 @@ ${conversationHistory}
 Genera la respuesta más adecuada, natural y personalizada. Responde en el mismo idioma del cliente (español por defecto). No uses markdown excesivo si el canal es WhatsApp/SMS, mantén emojis pertinentes.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+      model: "gemini-4-hydrogen",
       contents: prompt,
     });
 
@@ -113,7 +113,7 @@ Genera la respuesta más adecuada, natural y personalizada. Responde en el mismo
 
     res.json({
       reply,
-      source: "gemini-3.7-flash",
+      source: "gemini-4-hydrogen",
       status: "success"
     });
   } catch (error: any) {
@@ -165,7 +165,7 @@ Devuelve EXCLUSIVAMENTE un objeto JSON válido con la siguiente estructura exact
 }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+      model: "gemini-4-hydrogen",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -214,7 +214,7 @@ app.post("/api/ai/enhance-text", async (req, res) => {
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+      model: "gemini-4-hydrogen",
       contents: `${instruction}\n\n"${text}"\n\nDevuelve únicamente el texto mejorado sin comentarios adicionales ni comillas.`,
     });
 
@@ -225,7 +225,7 @@ app.post("/api/ai/enhance-text", async (req, res) => {
   }
 });
 
-// In-memory demo states and Green-API configuration
+// In-memory demo states and Green-API configuration (Line 1: Demos + Line 2: Digital MYK Lab Ventas)
 interface GreenApiConfigState {
   idInstance: string;
   apiTokenInstance: string;
@@ -235,31 +235,34 @@ interface GreenApiConfigState {
   lastPing?: string;
   lastWebhookReceived?: string;
   pollingEnabled?: boolean;
+  autoRespondAll?: boolean;
 }
 
 const GREEN_CONFIG_PATH = path.join(process.cwd(), "green_api_store.json");
+const SALES_GREEN_CONFIG_PATH = path.join(process.cwd(), "sales_green_api_store.json");
 
-function loadStoredGreenConfig(): Partial<GreenApiConfigState> {
+function loadStoredJsonConfig(filePath: string): Partial<GreenApiConfigState> {
   try {
-    if (fs.existsSync(GREEN_CONFIG_PATH)) {
-      const data = fs.readFileSync(GREEN_CONFIG_PATH, "utf-8");
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, "utf-8");
       return JSON.parse(data);
     }
   } catch (e) {
-    console.warn("Could not read stored green config:", e);
+    console.warn(`Could not read stored green config (${filePath}):`, e);
   }
   return {};
 }
 
-function saveStoredGreenConfig(cfg: GreenApiConfigState) {
+function saveStoredJsonConfig(filePath: string, cfg: GreenApiConfigState) {
   try {
-    fs.writeFileSync(GREEN_CONFIG_PATH, JSON.stringify(cfg, null, 2), "utf-8");
+    fs.writeFileSync(filePath, JSON.stringify(cfg, null, 2), "utf-8");
   } catch (e) {
-    console.warn("Could not save green config to disk:", e);
+    console.warn(`Could not save green config (${filePath}) to disk:`, e);
   }
 }
 
-const storedConfig = loadStoredGreenConfig();
+const storedConfig = loadStoredJsonConfig(GREEN_CONFIG_PATH);
+const storedSalesConfig = loadStoredJsonConfig(SALES_GREEN_CONFIG_PATH);
 
 let greenApiConfig: GreenApiConfigState = {
   idInstance: storedConfig.idInstance || process.env.GREEN_API_ID_INSTANCE || "710722724819",
@@ -268,13 +271,25 @@ let greenApiConfig: GreenApiConfigState = {
   connectedPhone: storedConfig.connectedPhone || "+51 986 150 562",
   status: "connected",
   lastPing: new Date().toISOString(),
-  pollingEnabled: true
+  pollingEnabled: storedConfig.pollingEnabled !== undefined ? storedConfig.pollingEnabled : true
 };
 
-// In-memory activity log for Green-API
+let salesGreenApiConfig: GreenApiConfigState = {
+  idInstance: storedSalesConfig.idInstance || process.env.SALES_GREEN_API_ID_INSTANCE || "",
+  apiTokenInstance: storedSalesConfig.apiTokenInstance || process.env.SALES_GREEN_API_TOKEN || "",
+  apiUrl: storedSalesConfig.apiUrl || process.env.SALES_GREEN_API_URL || "https://api.greenapi.com",
+  connectedPhone: storedSalesConfig.connectedPhone || "+51 929 327 654",
+  status: (storedSalesConfig.idInstance && storedSalesConfig.apiTokenInstance) ? "connected" : "disconnected",
+  lastPing: new Date().toISOString(),
+  pollingEnabled: storedSalesConfig.pollingEnabled !== undefined ? storedSalesConfig.pollingEnabled : true,
+  autoRespondAll: storedSalesConfig.autoRespondAll !== undefined ? storedSalesConfig.autoRespondAll : true
+};
+
+// In-memory activity log for Green-API (supports both lines)
 interface GreenApiLogEntry {
   id: string;
   timestamp: string;
+  line?: 'demos' | 'sales';
   type: 'incoming_webhook' | 'outgoing_send' | 'error' | 'diagnostic';
   sender?: string;
   phone?: string;
@@ -284,13 +299,22 @@ interface GreenApiLogEntry {
 }
 
 const greenApiLogs: GreenApiLogEntry[] = [];
-function addGreenApiLog(entry: Omit<GreenApiLogEntry, 'id' | 'timestamp'>) {
-  greenApiLogs.unshift({
+const salesGreenApiLogs: GreenApiLogEntry[] = [];
+
+function addGreenApiLog(entry: Omit<GreenApiLogEntry, 'id' | 'timestamp'>, targetLine: 'demos' | 'sales' = 'demos') {
+  const fullEntry: GreenApiLogEntry = {
     id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
     timestamp: new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    line: targetLine,
     ...entry
-  });
-  if (greenApiLogs.length > 50) greenApiLogs.pop();
+  };
+  if (targetLine === 'sales') {
+    salesGreenApiLogs.unshift(fullEntry);
+    if (salesGreenApiLogs.length > 50) salesGreenApiLogs.pop();
+  } else {
+    greenApiLogs.unshift(fullEntry);
+    if (greenApiLogs.length > 50) greenApiLogs.pop();
+  }
 }
 
 function getGreenApiBaseUrl(idInstance: string, customApiUrl?: string): string {
@@ -394,10 +418,97 @@ async function runGreenApiDrainBatch(maxItems = 10): Promise<number> {
   return processed;
 }
 
-// Background auto-polling worker (runs every 1.5 seconds)
+// Background auto-polling worker for Line 1 (Demos: +51 986 150 562)
 setInterval(() => {
   if (greenApiConfig.pollingEnabled && greenApiConfig.idInstance && greenApiConfig.apiTokenInstance) {
     runGreenApiDrainBatch(5).catch(() => {});
+  }
+}, 1500);
+
+// Global Poller & Processor for Line 2 (Digital MYK Lab Ventas: +51 929 327 654)
+let isSalesPollingCurrently = false;
+async function fetchAndProcessSalesNotification(): Promise<boolean> {
+  const id = (salesGreenApiConfig.idInstance || "").trim();
+  const token = (salesGreenApiConfig.apiTokenInstance || "").trim();
+  if (!id || !token) return false;
+
+  const baseUrl = getGreenApiBaseUrl(id, salesGreenApiConfig.apiUrl);
+  const receiveUrl = `${baseUrl}/waInstance${id}/receiveNotification/${token}`;
+
+  try {
+    const res = await fetch(receiveUrl, { method: "GET" });
+    if (!res.ok) return false;
+
+    const data: any = await res.json().catch(() => null);
+    if (!data || !data.receiptId) return false;
+
+    const receiptId = data.receiptId;
+    const body = data.body || {};
+    const typeWebhook = body.typeWebhook || "";
+
+    if (typeWebhook === "incomingMessageReceived" || body.messageData) {
+      const senderData = body.senderData || {};
+      const messageData = body.messageData || {};
+
+      const rawSender = senderData.sender || senderData.chatId || "";
+      const senderPhone = rawSender.replace(/@.*$/, "");
+      const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Prospecto WhatsApp";
+
+      let textMessage = "";
+      if (messageData.typeMessage === "textMessage") {
+        textMessage = messageData.textMessageData?.textMessage || "";
+      } else if (messageData.typeMessage === "extendedTextMessage") {
+        textMessage = messageData.extendedTextMessageData?.text || "";
+      } else if (messageData.typeMessage === "quotedMessage") {
+        textMessage = messageData.extendedTextMessageData?.text || messageData.quotedMessage?.text || "";
+      } else if (typeof messageData.textMessage === "string") {
+        textMessage = messageData.textMessage;
+      }
+
+      addGreenApiLog({
+        type: 'incoming_webhook',
+        phone: senderPhone,
+        sender: senderName,
+        text: textMessage || `[${messageData.typeMessage || 'Mensaje'}]`,
+        status: textMessage ? '📥 Mensaje Recibido (Línea Ventas 929 327 654)' : 'ℹ️ Mensaje Multimedia',
+        details: body
+      }, 'sales');
+
+      if (textMessage && senderPhone) {
+        console.log(`[Sales Line Auto-Receiver] De: ${senderName} (${senderPhone}): "${textMessage}"`);
+        await processDigitalMykSalesMessage(senderPhone, senderName, textMessage);
+      }
+    }
+
+    const deleteUrl = `${baseUrl}/waInstance${id}/deleteNotification/${token}/${receiptId}`;
+    await fetch(deleteUrl, { method: "DELETE" }).catch(() => {});
+    return true;
+  } catch (err: any) {
+    console.warn("[Sales Green-API Polling Error]:", err.message);
+    return false;
+  }
+}
+
+async function runSalesGreenApiDrainBatch(maxItems = 10): Promise<number> {
+  if (isSalesPollingCurrently) return 0;
+  isSalesPollingCurrently = true;
+  let processed = 0;
+  try {
+    for (let i = 0; i < maxItems; i++) {
+      const hadItem = await fetchAndProcessSalesNotification();
+      if (!hadItem) break;
+      processed++;
+    }
+  } finally {
+    isSalesPollingCurrently = false;
+  }
+  return processed;
+}
+
+// Background auto-polling worker for Line 2 (Ventas Digital MYK Lab: +51 929 327 654)
+setInterval(() => {
+  if (salesGreenApiConfig.pollingEnabled && salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance) {
+    runSalesGreenApiDrainBatch(5).catch(() => {});
   }
 }, 1500);
 
@@ -533,7 +644,334 @@ let beautyAppointments: any[] = [
   }
 ];
 
+// Disk persistence for sales leads (Line 2: +51 929 327 654)
+const SALES_LEADS_STORAGE_PATH = path.join(process.cwd(), "sales-leads-store.json");
+
+let salesLeads: any[] = [
+  {
+    id: 'lead_1',
+    registrationDate: 'Hoy 09:15 AM',
+    clientName: 'Jorge Paredes',
+    whatsapp: '+51 945112233',
+    serviceInterest: 'Combo Asistente IA + Web Gratis',
+    businessType: 'Clínica Dental',
+    lastMessage: 'Vi el anuncio de asistente IA + web gratis, quiero info',
+    status: '🔥 Nuevo Lead',
+    notes: 'Atendido automáticamente por Bot Comercial Digital MYK Lab'
+  },
+  {
+    id: 'lead_2',
+    registrationDate: 'Hoy 11:40 AM',
+    clientName: 'Mariana Quispe',
+    whatsapp: '+51 981223344',
+    serviceInterest: 'App a la Medida',
+    businessType: 'Tienda de Pedidos / Delivery',
+    lastMessage: 'Necesito una app para gestionar pedidos de mi negocio',
+    status: '💬 En Asesoría',
+    notes: 'Solicitó demostración de panel de pedidos y reportes'
+  }
+];
+
+function loadStoredSalesLeads() {
+  try {
+    if (fs.existsSync(SALES_LEADS_STORAGE_PATH)) {
+      const raw = fs.readFileSync(SALES_LEADS_STORAGE_PATH, "utf-8");
+      const data = JSON.parse(raw);
+      if (Array.isArray(data.salesLeads)) salesLeads = data.salesLeads;
+    }
+  } catch (e) {
+    console.warn("Could not load stored sales leads:", e);
+  }
+}
+
+function saveStoredSalesLeads() {
+  try {
+    fs.writeFileSync(SALES_LEADS_STORAGE_PATH, JSON.stringify({ salesLeads }, null, 2));
+  } catch (e) {
+    console.warn("Could not save stored sales leads:", e);
+  }
+}
+
 loadStoredAppointments();
+loadStoredSalesLeads();
+
+// Session tracking for Line 2: Digital MYK Lab Commercial Sales (+51 929 327 654)
+interface SalesSessionState {
+  chatId: string;
+  phone: string;
+  name: string;
+  serviceInterest: string;
+  businessType?: string;
+  history: Array<{ sender: 'user' | 'bot'; text: string; timestamp: string }>;
+  lastActivity: string;
+}
+
+const salesSessions = new Map<string, SalesSessionState>();
+
+function detectDigitalMykServiceIntent(lowerText: string): string {
+  if (lowerText.includes("gratis") || lowerText.includes("oferta") || lowerText.includes("combo") || lowerText.includes("promo") || lowerText.includes("pack")) {
+    return "Combo Asistente IA + Web Gratis";
+  }
+  if (lowerText.includes("app") || lowerText.includes("aplicacion") || lowerText.includes("aplicación") || lowerText.includes("movil") || lowerText.includes("móvil") || lowerText.includes("android") || lowerText.includes("ios") || lowerText.includes("sistema")) {
+    return "App a la Medida";
+  }
+  if (lowerText.includes("chatbot") || lowerText.includes("bot") || lowerText.includes("ia") || lowerText.includes("inteligencia") || lowerText.includes("whatsapp") || lowerText.includes("automatiz") || lowerText.includes("asistente")) {
+    return "Chatbot IA 24/7";
+  }
+  if (lowerText.includes("web") || lowerText.includes("pagina") || lowerText.includes("página") || lowerText.includes("sitio") || lowerText.includes("landing") || lowerText.includes("seo") || lowerText.includes("vercel")) {
+    return "Página Web Profesional";
+  }
+  return "Información General de Servicios";
+}
+
+function buildProFallbackSalesReply(cleanText: string, senderName: string, isFirstMessage: boolean, detectedService: string): string {
+  const lower = cleanText.toLowerCase();
+  const greetingName = (senderName && senderName !== "Prospecto WhatsApp" && senderName !== "Cliente") ? ` ${senderName}` : "";
+
+  if (lower === "1" || detectedService === "Chatbot IA 24/7") {
+    return `¡Excelente elección${greetingName}! 🤖🚀 En *Digital MYK Lab* desarrollamos *Chatbots y Asistentes con Inteligencia Artificial 24/7* que trabajan por tu negocio todo el día:
+
+✅ *Atención inmediata 24/7:* Responde a tus clientes en menos de 1 minuto sin perder ventas.
+✅ *Genera Leads Calificados:* Convierte cada conversación en oportunidades reales.
+✅ *Agenda Citas Automáticamente:* Sincroniza reservas directo con tu calendario, Google Sheets o CRM.
+✅ *Integración Total:* WhatsApp, Instagram, Messenger, Shopify y HubSpot.
+
+🎁 *Bono Activo:* Al implementar tu *Asistente IA 24/7*, te llevas tu *Sitio Web Profesional TOTALMENTE GRATIS* _(consultar por dominio/hosting externo)_.
+
+Para recomendarte el plan ideal, cuéntame: *¿De qué rubro es tu negocio y cuántas consultas recibes al día aproximadamente?* 💬✨`;
+  }
+
+  if (lower === "2" || detectedService === "App a la Medida") {
+    return `¡Genial${greetingName}! 📱✨ En *Digital MYK Lab* creamos *la App hecha a la medida que tu negocio necesita* para que tengas tu empresa en la palma de la mano:
+
+🚀 *Funcionalidades clave que incluimos:*
+• Panel de ventas en tiempo real y reportes inteligentes.
+• Gestión de productos, pedidos, catálogo y clientes.
+• Notificaciones automáticas y seguimiento de entregas.
+• *Seguras, rápidas y escalables* con tecnología de vanguardia.
+
+🛡️ Además cuentas con *Asesoría Gratuita*, entrega a tiempo y soporte continuo.
+
+Cuéntame brevemente: *¿Qué procesos o ventas te gustaría controlar desde tu propia App?* 📲`;
+  }
+
+  if (lower === "3" || detectedService === "Página Web Profesional") {
+    return `¡Perfecto${greetingName}! 🌐⚡ En *Digital MYK Lab* diseñamos *Páginas Web Profesionales de Alto Rendimiento* pensadas para convertir visitas en clientes:
+
+💎 *¿Qué incluye nuestro desarrollo web?*
+• *Tecnología de Punta:* Código limpio alojado en servidores de altísimo rendimiento (carga en milisegundos).
+• *Máxima Seguridad:* Certificado SSL 100% incluido 🔒.
+• *SEO de Alto Impacto:* Estructura optimizada para posicionar tu marca en Google 📈.
+• *Botón directo a WhatsApp* para cerrar ventas al instante.
+
+🔗 Puedes ver nuestro portafolio en: https://digitalmyklab.vercel.app/
+
+*¿Tu negocio ya cuenta con dominio/web actual o empezaríamos desde cero?* 🚀`;
+  }
+
+  if (lower === "4" || detectedService === "Combo Asistente IA + Web Gratis") {
+    return `🔥 *¡Has elegido nuestra Oferta Estrella${greetingName}!* 🎁✨
+
+Al adquirir tu *Asistente Virtual con Inteligencia Artificial 24/7* en *Digital MYK Lab*, te llevas tu *Sitio Web Profesional TOTALMENTE GRATIS* _(consultar por hosting/dominio externos)_.
+
+⚡ *Con este ecosistema completo obtienes:*
+1️⃣ *Asistente IA 24/7:* Responde en < 1 minuto, califica clientes y agenda citas automáticamente.
+2️⃣ *Sitio Web Profesional GRATIS:* Diseño moderno, SSL de seguridad, optimizado para Google y conectado a tu WhatsApp.
+3️⃣ *99.9% Uptime y Soporte 24/7/365* con garantía real.
+
+¿De qué rubro es tu empresa o emprendimiento para enviarte una propuesta a medida hoy mismo? 🚀💼`;
+  }
+
+  // Default immediate response to ANY word/greeting on +51 929 327 654
+  return `¡Hola${greetingName}! 👋 Bienvenido a *Digital MYK Lab* — _Seguridad y Garantía_ 🛡️🚀
+
+Gracias por comunicarte con nosotros. Ayudamos a empresas y emprendedores a *automatizar sus ventas y multiplicar sus clientes* con tecnología de vanguardia:
+
+1️⃣ *Chatbots & Asistentes IA 24/7* 🤖
+   _Atención inmediata, calificación de leads y agendamiento automático de citas._
+
+2️⃣ *Páginas Web Profesionales* 🌐
+   _Carga ultrarrápida, Certificado SSL incluido, SEO para Google y diseño enfocado en ventas._
+
+3️⃣ *Aplicaciones Móviles / Web a la Medida* 📱
+   _Controla ventas, pedidos, clientes y reportes en tiempo real desde cualquier lugar._
+
+4️⃣ *🎁 OFERTA ESPECIAL:* *Asistente IA 24/7 + Sitio Web Profesional GRATIS* 🔥
+
+🔗 Portafolio: https://digitalmyklab.vercel.app/
+
+Cuéntame, *¿cuál de estas soluciones te interesa potenciar y de qué trata tu negocio?* (También puedes responder *1, 2, 3 o 4* para darte detalles al instante) 👇✨`;
+}
+
+// Core Engine for Line 2 (+51 929 327 654): Responds IMMEDIATELY to ANY incoming word/message
+async function processDigitalMykSalesMessage(phone: string, senderName: string, text: string) {
+  const cleanText = (text || "").trim() || "Hola";
+  const lowerText = cleanText.toLowerCase();
+
+  const formattedPhone = phone.startsWith("+") ? phone : `+${phone.replace(/[^0-9]/g, "")}`;
+  const sessionKey = formattedPhone.replace(/[^0-9]/g, "");
+
+  let session = salesSessions.get(sessionKey);
+  const isFirstMessage = !session || session.history.length === 0;
+
+  if (!session) {
+    session = {
+      chatId: sessionKey,
+      phone: formattedPhone,
+      name: senderName || "Prospecto WhatsApp",
+      serviceInterest: "Información General",
+      history: [],
+      lastActivity: new Date().toISOString()
+    };
+    salesSessions.set(sessionKey, session);
+  }
+
+  if (senderName && senderName !== "Prospecto WhatsApp" && senderName !== "Cliente") {
+    session.name = senderName;
+  }
+
+  const detectedService = detectDigitalMykServiceIntent(lowerText);
+  if (detectedService !== "Información General de Servicios" || isFirstMessage) {
+    session.serviceInterest = detectedService;
+  }
+
+  let botReply = "";
+  let capturedLeadData: any = null;
+
+  const historyText = session.history
+    .slice(-8)
+    .map(h => `${h.sender === 'user' ? 'Prospecto' : 'Asesor Digital MYK Lab'}: ${h.text}`)
+    .join("\n");
+
+  // Always respond immediately and professionally on ANY incoming text
+  const salesPrompt = `Eres el Asesor Comercial Senior de "Digital MYK Lab" (Slogan: "Seguridad y Garantía | Innova. Automatiza. Convierte.").
+Tu canal oficial de WhatsApp comercial es +51 929 327 654.
+Web oficial: https://digitalmyklab.vercel.app/
+Correo: compumasster@gmail.com
+
+PORTAFOLIO OFICIAL DE SERVICIOS DE DIGITAL MYK LAB:
+1. Chatbots & Automatización con Inteligencia Artificial 24/7:
+   - Atención inmediata 24/7 (< 1 minuto de respuesta), generación de leads calificados, agendamiento automático de citas, sincronización con Google Sheets / CRM, integración con WhatsApp, Instagram, Messenger, Shopify y HubSpot.
+2. Páginas Web Profesionales de Alto Rendimiento:
+   - Código limpio a medida, servidores de altísimo rendimiento (Vercel + GitHub), carga en milisegundos, Certificado SSL incluido, SEO de alto impacto para posicionar en Google y diseño enfocado en convertir visitas en clientes.
+3. Desarrollo de Aplicaciones Móviles y Web Apps a la Medida:
+   - Apps seguras, rápidas y escalables con panel de ventas, gestión de productos, pedidos, clientes, reportes y notificaciones en tiempo real. Incluye asesoría gratuita, entrega a tiempo y soporte continuo.
+4. OFERTA ESTRELLA / COMBO IRRESISTIBLE:
+   - "Consigue tu Asistente IA 24/7 y llévate tu Sitio Web Profesional TOTALMENTE GRATIS" (*consultar por hosting/dominio externos*). Incluye 99.9% Uptime y soporte real 24/7/365.
+
+REGLAS DE RESPUESTA PRO:
+1. Responde de INMEDIATO ante CUALQUIER palabra o mensaje que envíe el usuario, incluso si solo dice "hola", "info", ".", "precio", etc.
+2. Mantén un tono ejecutivo, persuasivo, cercano, moderno y estructurado para WhatsApp (usa negritas *así*, viñetas claras y emojis estratégicos como 🚀, 🤖, 🌐, 📱, 🎁, 🛡️).
+3. Si es el PRIMER mensaje o un saludo general, presenta de forma ordenada y atractiva los 4 servicios principales (destacando el Combo IA + Web Gratis) e invita al cliente a contar de qué trata su negocio o elegir qué servicio le interesa.
+4. Si pregunta por un servicio específico (Chatbot, Web, App u Oferta), profundiza en sus beneficios de negocio, transmite confianza ("Seguridad y Garantía") y haz una pregunta de calificación (ej. rubro del negocio, qué necesita automatizar o si desea agendar una asesoría gratuita / demo).
+5. No inventes precios cerrados falsos si no se han definido; enfócate en el valor, asesoría gratuita y cotización personalizada según el proyecto.
+6. Al final de tu respuesta, si identificas el interés o rubro del cliente, agrega en una línea oculta al final:
+[SALES_LEAD: {"clientName":"${session.name}", "serviceInterest":"...", "businessType":"...", "stage":"🔥 Nuevo Lead" | "💬 En Asesoría" | "📄 Cotizado"}]
+
+Historial reciente:
+${historyText || "(Primera interacción)"}
+
+Mensaje actual del prospecto (${session.name} - ${formattedPhone}):
+"${cleanText}"`;
+
+  let rawAiReply = await generateAiText(salesPrompt);
+
+  if (rawAiReply) {
+    const leadMatch = rawAiReply.match(/\[SALES_LEAD:\s*(\{.*?\})\]/s);
+    if (leadMatch) {
+      try {
+        capturedLeadData = JSON.parse(leadMatch[1]);
+      } catch (e) {}
+      rawAiReply = rawAiReply.replace(/\[SALES_LEAD:\s*\{.*?\}\]/gs, "").trim();
+    }
+    botReply = rawAiReply;
+  } else {
+    botReply = buildProFallbackSalesReply(cleanText, session.name, isFirstMessage, detectedService);
+  }
+
+  // Upsert Lead in salesLeads store so it appears immediately in the dashboard
+  const leadIndex = salesLeads.findIndex(l => l.whatsapp.replace(/[^0-9]/g, "") === sessionKey);
+  const serviceToSave = capturedLeadData?.serviceInterest || session.serviceInterest || detectedService;
+  const businessToSave = capturedLeadData?.businessType || session.businessType || "Por calificar";
+  const statusToSave = capturedLeadData?.stage || (leadIndex >= 0 ? "💬 En Asesoría" : "🔥 Nuevo Lead");
+
+  const leadPayload = {
+    id: leadIndex >= 0 ? salesLeads[leadIndex].id : `lead_${Date.now()}`,
+    registrationDate: new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+    clientName: capturedLeadData?.clientName || session.name || "Prospecto WhatsApp",
+    whatsapp: formattedPhone,
+    serviceInterest: serviceToSave,
+    businessType: businessToSave,
+    lastMessage: cleanText.slice(0, 120),
+    status: statusToSave,
+    notes: "Atendido automáticamente por Bot Comercial Digital MYK Lab (+51 929 327 654)"
+  };
+
+  if (leadIndex >= 0) {
+    salesLeads[leadIndex] = { ...salesLeads[leadIndex], ...leadPayload };
+  } else {
+    salesLeads.unshift(leadPayload);
+  }
+  saveStoredSalesLeads();
+
+  session.history.push({ sender: 'user', text: cleanText, timestamp: new Date().toISOString() });
+  session.history.push({ sender: 'bot', text: botReply, timestamp: new Date().toISOString() });
+  session.lastActivity = new Date().toISOString();
+
+  // Send out via Line 2 Green-API if configured
+  let greenApiSendStatus = "not_sent";
+  if (salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance && sessionKey.length >= 7) {
+    const cleanPhone = formattedPhone.replace(/[^0-9]/g, "");
+    const chatId = `${cleanPhone}@c.us`;
+    const targetUrl = getGreenApiUrl(salesGreenApiConfig.idInstance, salesGreenApiConfig.apiTokenInstance, "sendMessage", salesGreenApiConfig.apiUrl);
+
+    try {
+      const sendRes = await fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId, message: botReply })
+      });
+      const sendJson: any = await sendRes.json().catch(() => ({}));
+      if (sendRes.ok) {
+        greenApiSendStatus = "sent_success";
+        addGreenApiLog({
+          type: 'outgoing_send',
+          phone: formattedPhone,
+          sender: session.name,
+          text: botReply.slice(0, 120) + (botReply.length > 120 ? "..." : ""),
+          status: '🟢 Respuesta PRO Enviada (929 327 654)',
+          details: sendJson
+        }, 'sales');
+      } else {
+        greenApiSendStatus = `error_${sendRes.status}`;
+        addGreenApiLog({
+          type: 'error',
+          phone: formattedPhone,
+          sender: session.name,
+          status: `🔴 Error HTTP ${sendRes.status}: ${sendJson?.message || 'Fallo de envío'}`,
+          details: sendJson
+        }, 'sales');
+      }
+    } catch (err: any) {
+      greenApiSendStatus = "network_error";
+      addGreenApiLog({
+        type: 'error',
+        phone: formattedPhone,
+        sender: session.name,
+        status: '🔴 Error de Red / Timeout',
+        details: { message: err.message }
+      }, 'sales');
+    }
+  }
+
+  return {
+    reply: botReply,
+    lead: leadPayload,
+    actionTriggered: "SALES_LEAD_UPSERT",
+    greenApiSendStatus,
+    session
+  };
+}
 
 // Core Engine: Process incoming message for Demo 1 or Demo 2
 async function processDemoMessage(phone: string, senderName: string, text: string) {
@@ -1021,7 +1459,7 @@ Cuéntame tu nombre y el servicio deseado 💖.`;
   };
 }
 
-// Endpoint: Green-API Configuration Get & Update
+// Endpoint: Green-API Configuration Get & Update (Line 1: Demos)
 app.get("/api/green-api/config", (req, res) => {
   res.json(greenApiConfig);
 });
@@ -1048,8 +1486,7 @@ app.post("/api/green-api/config", (req, res) => {
   greenApiConfig.lastPing = new Date().toISOString();
   greenApiConfig.status = "connected";
 
-  // Persist to disk
-  saveStoredGreenConfig(greenApiConfig);
+  saveStoredJsonConfig(GREEN_CONFIG_PATH, greenApiConfig);
 
   addGreenApiLog({
     type: 'diagnostic',
@@ -1057,10 +1494,273 @@ app.post("/api/green-api/config", (req, res) => {
     details: { apiUrl: greenApiConfig.apiUrl, hasToken: !!greenApiConfig.apiTokenInstance, polling: greenApiConfig.pollingEnabled }
   });
 
-  // Immediately kick off a drain batch in case messages are waiting
   runGreenApiDrainBatch(10).catch(() => {});
-
   res.json({ success: true, config: greenApiConfig });
+});
+
+// Endpoints: Green-API Line 2 (Digital MYK Lab Comercial +51 929 327 654)
+app.get("/api/green-api/sales/config", (req, res) => {
+  res.json(salesGreenApiConfig);
+});
+
+app.post("/api/green-api/sales/config", (req, res) => {
+  const { idInstance, apiTokenInstance, apiUrl, connectedPhone, pollingEnabled, autoRespondAll } = req.body;
+  if (idInstance !== undefined) {
+    salesGreenApiConfig.idInstance = idInstance.trim();
+  }
+  if (apiTokenInstance !== undefined && apiTokenInstance.trim()) {
+    salesGreenApiConfig.apiTokenInstance = apiTokenInstance.trim();
+  }
+  if (apiUrl !== undefined && apiUrl.trim()) {
+    salesGreenApiConfig.apiUrl = apiUrl.trim();
+  } else if (salesGreenApiConfig.idInstance) {
+    salesGreenApiConfig.apiUrl = getGreenApiBaseUrl(salesGreenApiConfig.idInstance);
+  }
+  if (connectedPhone !== undefined && connectedPhone.trim()) {
+    salesGreenApiConfig.connectedPhone = connectedPhone.trim();
+  }
+  if (pollingEnabled !== undefined) {
+    salesGreenApiConfig.pollingEnabled = !!pollingEnabled;
+  }
+  if (autoRespondAll !== undefined) {
+    salesGreenApiConfig.autoRespondAll = !!autoRespondAll;
+  }
+  salesGreenApiConfig.lastPing = new Date().toISOString();
+  salesGreenApiConfig.status = (salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance) ? "connected" : "disconnected";
+
+  saveStoredJsonConfig(SALES_GREEN_CONFIG_PATH, salesGreenApiConfig);
+
+  addGreenApiLog({
+    type: 'diagnostic',
+    status: `⚙️ Línea Ventas 929 327 654 Guardada (idInstance: ${salesGreenApiConfig.idInstance || 'pendiente'})`,
+    details: { apiUrl: salesGreenApiConfig.apiUrl, hasToken: !!salesGreenApiConfig.apiTokenInstance, polling: salesGreenApiConfig.pollingEnabled }
+  }, 'sales');
+
+  if (salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance) {
+    runSalesGreenApiDrainBatch(10).catch(() => {});
+  }
+
+  res.json({ success: true, config: salesGreenApiConfig });
+});
+
+app.post("/api/green-api/sales/set-queue-mode", async (req, res) => {
+  const id = String(req.body.idInstance || salesGreenApiConfig.idInstance || "").trim();
+  const token = String(req.body.apiTokenInstance || salesGreenApiConfig.apiTokenInstance || "").trim();
+  const customApiUrl = String(req.body.apiUrl || salesGreenApiConfig.apiUrl || "").trim();
+
+  if (!id || !token) {
+    return res.status(400).json({ success: false, error: "Faltan credenciales de la Instancia Ventas (idInstance y apiTokenInstance)" });
+  }
+
+  const baseUrl = getGreenApiBaseUrl(id, customApiUrl);
+  const setSettingsUrl = `${baseUrl}/waInstance${id}/setSettings/${token}`;
+
+  try {
+    const apiRes = await fetch(setSettingsUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        webhookUrl: "",
+        incomingWebhook: "yes",
+        outgoingMessageWebhook: "yes",
+        stateWebhook: "yes"
+      })
+    });
+
+    const data = await apiRes.json().catch(() => ({}));
+    addGreenApiLog({
+      type: 'diagnostic',
+      status: '🚀 Modo Cola Activado en Línea Ventas (+51 929 327 654)',
+      details: data
+    }, 'sales');
+
+    setTimeout(() => {
+      runSalesGreenApiDrainBatch(10).catch(() => {});
+    }, 1000);
+
+    res.json({
+      success: apiRes.ok,
+      message: "¡Modo Cola 24/7 activado en la Línea Ventas (+51 929 327 654)!",
+      data
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/green-api/sales/set-webhook-url", async (req, res) => {
+  const id = String(req.body.idInstance || salesGreenApiConfig.idInstance || "").trim();
+  const token = String(req.body.apiTokenInstance || salesGreenApiConfig.apiTokenInstance || "").trim();
+  const customApiUrl = String(req.body.apiUrl || salesGreenApiConfig.apiUrl || "").trim();
+  const webhookUrl = String(req.body.webhookUrl || "").trim();
+
+  if (!id || !token) {
+    return res.status(400).json({ success: false, error: "Faltan credenciales (idInstance y apiTokenInstance)" });
+  }
+  if (!webhookUrl) {
+    return res.status(400).json({ success: false, error: "Ingresa la URL del webhook" });
+  }
+
+  const baseUrl = getGreenApiBaseUrl(id, customApiUrl);
+  const setSettingsUrl = `${baseUrl}/waInstance${id}/setSettings/${token}`;
+
+  try {
+    const apiRes = await fetch(setSettingsUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        webhookUrl: webhookUrl,
+        incomingWebhook: "yes",
+        outgoingMessageWebhook: "yes",
+        stateWebhook: "yes"
+      })
+    });
+    const data = await apiRes.json().catch(() => ({}));
+    addGreenApiLog({
+      type: 'diagnostic',
+      status: `🔗 Webhook Configurado en Línea Ventas: ${webhookUrl}`,
+      details: data
+    }, 'sales');
+    res.json({ success: apiRes.ok, message: `¡Webhook configurado hacia ${webhookUrl}!`, data });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/green-api/sales/toggle-polling", (req, res) => {
+  const { enabled } = req.body;
+  salesGreenApiConfig.pollingEnabled = enabled !== undefined ? !!enabled : !salesGreenApiConfig.pollingEnabled;
+  saveStoredJsonConfig(SALES_GREEN_CONFIG_PATH, salesGreenApiConfig);
+  addGreenApiLog({
+    type: 'diagnostic',
+    status: `⚙️ Polling Ventas ${salesGreenApiConfig.pollingEnabled ? 'ACTIVADO' : 'PAUSADO'}`,
+    details: { pollingEnabled: salesGreenApiConfig.pollingEnabled }
+  }, 'sales');
+  res.json({ success: true, pollingEnabled: salesGreenApiConfig.pollingEnabled });
+});
+
+app.post("/api/green-api/sales/poll-now", async (req, res) => {
+  try {
+    const count = await runSalesGreenApiDrainBatch(15);
+    res.json({
+      success: true,
+      processedCount: count,
+      message: count > 0 ? `¡Se procesaron ${count} mensajes en la Línea Ventas!` : "La cola de la Línea Ventas está al día."
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get("/api/green-api/sales/diagnose", async (req, res) => {
+  const queryId = String(req.query.idInstance || salesGreenApiConfig.idInstance || "").trim();
+  const queryToken = String(req.query.apiTokenInstance || salesGreenApiConfig.apiTokenInstance || "").trim();
+  const queryApiUrl = String(req.query.apiUrl || salesGreenApiConfig.apiUrl || "").trim();
+
+  if (!queryId || !queryToken) {
+    return res.json({ success: false, error: "Ingresa el idInstance y apiTokenInstance de la línea +51 929 327 654." });
+  }
+
+  const baseUrl = getGreenApiBaseUrl(queryId, queryApiUrl);
+  const stateUrl = `${baseUrl}/waInstance${queryId}/getStateInstance/${queryToken}`;
+  const settingsUrl = `${baseUrl}/waInstance${queryId}/getSettings/${queryToken}`;
+
+  try {
+    const [stateRes, settingsRes] = await Promise.all([
+      fetch(stateUrl).then(r => r.json().catch(() => ({ status: r.status }))),
+      fetch(settingsUrl).then(r => r.json().catch(() => ({ status: r.status })))
+    ]);
+    const isAuthorized = stateRes?.stateInstance === "authorized";
+    addGreenApiLog({
+      type: 'diagnostic',
+      status: isAuthorized ? '🟢 Diagnóstico Ventas: WhatsApp AUTORIZADO' : `🟡 Estado Ventas: ${stateRes?.stateInstance || 'No Autorizada'}`,
+      details: { stateInstance: stateRes, settings: settingsRes, baseUrl }
+    }, 'sales');
+    res.json({ success: true, baseUrl, stateInstance: stateRes, settings: settingsRes, isAuthorized });
+  } catch (err: any) {
+    res.json({ success: false, baseUrl, error: err.message });
+  }
+});
+
+app.get("/api/green-api/sales/logs", (req, res) => {
+  res.json({ config: salesGreenApiConfig, logs: salesGreenApiLogs });
+});
+
+app.post("/api/green-api/sales/send-message", async (req, res) => {
+  try {
+    const { phone, message } = req.body;
+    const cleanPhone = (phone || "").replace(/[^0-9]/g, "");
+    if (!cleanPhone || !message) {
+      return res.status(400).json({ error: "phone y message son requeridos" });
+    }
+    if (!salesGreenApiConfig.idInstance || !salesGreenApiConfig.apiTokenInstance) {
+      return res.status(400).json({ error: "Configura primero el idInstance y apiTokenInstance de la línea Ventas (929 327 654)" });
+    }
+
+    const targetUrl = getGreenApiUrl(salesGreenApiConfig.idInstance, salesGreenApiConfig.apiTokenInstance, "sendMessage", salesGreenApiConfig.apiUrl);
+    const chatId = `${cleanPhone}@c.us`;
+    const apiRes = await fetch(targetUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId, message })
+    });
+    const data = await apiRes.json().catch(() => ({}));
+    addGreenApiLog({
+      type: 'outgoing_send',
+      phone: `+${cleanPhone}`,
+      sender: 'Prueba Manual (Ventas)',
+      text: message,
+      status: apiRes.ok ? '🟢 Mensaje Enviado (929 327 654)' : `🔴 Error HTTP ${apiRes.status}`,
+      details: data
+    }, 'sales');
+    res.json({ success: apiRes.ok, status: apiRes.status, targetUrl, data });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/green-api/sales/webhook", async (req, res) => {
+  try {
+    const body = req.body || {};
+    salesGreenApiConfig.lastWebhookReceived = new Date().toISOString();
+    const typeWebhook = body.typeWebhook || "";
+
+    if (typeWebhook === "incomingMessageReceived" || body.messageData) {
+      const senderData = body.senderData || {};
+      const messageData = body.messageData || {};
+      const rawSender = senderData.sender || senderData.chatId || "";
+      const senderPhone = rawSender.replace(/@.*$/, "");
+      const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Prospecto WhatsApp";
+
+      let textMessage = "";
+      if (messageData.typeMessage === "textMessage") {
+        textMessage = messageData.textMessageData?.textMessage || "";
+      } else if (messageData.typeMessage === "extendedTextMessage") {
+        textMessage = messageData.extendedTextMessageData?.text || "";
+      } else if (messageData.typeMessage === "quotedMessage") {
+        textMessage = messageData.extendedTextMessageData?.text || messageData.quotedMessage?.text || "";
+      } else if (typeof messageData.textMessage === "string") {
+        textMessage = messageData.textMessage;
+      }
+
+      addGreenApiLog({
+        type: 'incoming_webhook',
+        phone: senderPhone,
+        sender: senderName,
+        text: textMessage || `[${messageData.typeMessage || 'Mensaje'}]`,
+        status: textMessage ? '📥 Mensaje Recibido (Línea Ventas 929 327 654)' : '⚠️ Mensaje sin texto',
+        details: body
+      }, 'sales');
+
+      if (textMessage && senderPhone) {
+        const result = await processDigitalMykSalesMessage(senderPhone, senderName, textMessage);
+        return res.json({ status: "processed", result });
+      }
+    }
+    res.json({ status: "ok", received: true });
+  } catch (error: any) {
+    res.status(200).json({ error: error.message });
+  }
 });
 
 // Endpoint: Configure Green-API to Queue Mode by clearing webhookUrl
@@ -1166,7 +1866,7 @@ app.post("/api/green-api/toggle-polling", (req, res) => {
   } else {
     greenApiConfig.pollingEnabled = !greenApiConfig.pollingEnabled;
   }
-  saveStoredGreenConfig(greenApiConfig);
+  saveStoredJsonConfig(GREEN_CONFIG_PATH, greenApiConfig);
   addGreenApiLog({
     type: 'diagnostic',
     status: `⚙️ Polling ${greenApiConfig.pollingEnabled ? 'ACTIVADO' : 'PAUSADO'} en este servidor`,
@@ -1298,9 +1998,12 @@ app.post(["/api/green-api/webhook", "/api/webhooks/green-api"], async (req, res)
     console.log("[Green-API Webhook Received]:", JSON.stringify(body));
     greenApiConfig.lastWebhookReceived = new Date().toISOString();
 
-    // Auto-sync instance id from payload if available
-    if (body.instanceData?.idInstance) {
-      greenApiConfig.idInstance = String(body.instanceData.idInstance);
+    // Auto-route to Sales Line if incoming instanceId matches salesGreenApiConfig.idInstance
+    const incomingInstanceId = body.instanceData?.idInstance ? String(body.instanceData.idInstance) : "";
+    const isSalesInstance = !!(incomingInstanceId && salesGreenApiConfig.idInstance && incomingInstanceId === salesGreenApiConfig.idInstance);
+
+    if (!isSalesInstance && incomingInstanceId) {
+      greenApiConfig.idInstance = incomingInstanceId;
       if (!greenApiConfig.apiUrl) {
         greenApiConfig.apiUrl = getGreenApiBaseUrl(greenApiConfig.idInstance);
       }
@@ -1333,13 +2036,17 @@ app.post(["/api/green-api/webhook", "/api/webhooks/green-api"], async (req, res)
         phone: senderPhone,
         sender: senderName,
         text: textMessage || `[${messageData.typeMessage || 'Mensaje Multimedia'}]`,
-        status: textMessage ? '📥 Mensaje Recibido de WhatsApp' : '⚠️ Mensaje sin texto reconocible',
+        status: textMessage
+          ? (isSalesInstance ? '📥 Mensaje Recibido (Línea Ventas 929 327 654)' : '📥 Mensaje Recibido de WhatsApp')
+          : '⚠️ Mensaje sin texto reconocible',
         details: body
-      });
+      }, isSalesInstance ? 'sales' : 'demos');
 
       if (textMessage && senderPhone) {
-        console.log(`[Green-API Message Incoming] De: ${senderName} (${senderPhone}): "${textMessage}"`);
-        const result = await processDemoMessage(senderPhone, senderName, textMessage);
+        console.log(`[Green-API Message Incoming] [${isSalesInstance ? 'SALES' : 'DEMOS'}] De: ${senderName} (${senderPhone}): "${textMessage}"`);
+        const result = isSalesInstance
+          ? await processDigitalMykSalesMessage(senderPhone, senderName, textMessage)
+          : await processDemoMessage(senderPhone, senderName, textMessage);
         return res.json({ status: "processed", result });
       }
     } else {
@@ -1347,7 +2054,7 @@ app.post(["/api/green-api/webhook", "/api/webhooks/green-api"], async (req, res)
         type: 'incoming_webhook',
         status: `ℹ️ Notificación: ${typeWebhook || 'Ping Event'}`,
         details: body
-      });
+      }, isSalesInstance ? 'sales' : 'demos');
     }
 
     // Acknowledge webhook
@@ -1374,25 +2081,68 @@ app.post("/api/demo/process-message", async (req, res) => {
   }
 });
 
-// Endpoint: Live Data for Demos (Odontología & Belleza)
+// Endpoint: Commercial Sales Message Processor (Line 2: +51 929 327 654)
+app.post("/api/sales/process-message", async (req, res) => {
+  try {
+    const { phone = "+51 944 888 111", senderName = "Prospecto", message = "Hola" } = req.body;
+    const result = await processDigitalMykSalesMessage(phone, senderName, message);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint: Live Data for Demos & Sales
 app.get("/api/demo/data", (req, res) => {
   res.json({
     dentalAppointments,
     beautyAppointments,
-    greenApiConfig
+    salesLeads,
+    greenApiConfig,
+    salesGreenApiConfig
   });
 });
 
 app.post("/api/demo/dental/update-status", (req, res) => {
   const { id, status } = req.body;
   dentalAppointments = dentalAppointments.map(d => d.id === id ? { ...d, status } : d);
+  saveStoredAppointments();
   res.json({ success: true, dentalAppointments });
 });
 
 app.post("/api/demo/beauty/update-status", (req, res) => {
   const { id, status } = req.body;
   beautyAppointments = beautyAppointments.map(b => b.id === id ? { ...b, status } : b);
+  saveStoredAppointments();
   res.json({ success: true, beautyAppointments });
+});
+
+app.post("/api/sales/update-status", (req, res) => {
+  const { id, status } = req.body;
+  salesLeads = salesLeads.map(l => l.id === id ? { ...l, status } : l);
+  saveStoredSalesLeads();
+  res.json({ success: true, salesLeads });
+});
+
+app.post("/api/sales/add-lead", (req, res) => {
+  const lead = req.body;
+  if (!lead || !lead.clientName) {
+    return res.status(400).json({ error: "Datos del prospecto requeridos" });
+  }
+  const newLead = {
+    id: lead.id || `lead_${Date.now()}`,
+    registrationDate: lead.registrationDate || new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+    clientName: lead.clientName,
+    whatsapp: lead.whatsapp || "+51 9",
+    serviceInterest: lead.serviceInterest || "Combo Asistente IA + Web Gratis",
+    businessType: lead.businessType || "Por calificar",
+    lastMessage: lead.lastMessage || "Ingreso manual",
+    status: lead.status || "🔥 Nuevo Lead",
+    notes: lead.notes || "Agregado manualmente desde el panel comercial"
+  };
+  salesLeads.unshift(newLead);
+  saveStoredSalesLeads();
+  res.json({ success: true, lead: newLead, salesLeads });
 });
 
 // Endpoint: Webhook simulator / Live Incoming message receiver

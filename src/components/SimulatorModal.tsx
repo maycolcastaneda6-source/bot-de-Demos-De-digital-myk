@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Smartphone, 
   X, 
@@ -19,26 +19,41 @@ import { getChannelMeta } from '../utils/channelUtils';
 interface SimulatorModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTargetLine?: 'demos' | 'sales';
   onSendSimulatedMessage: (
     channel: ChannelType,
     senderName: string,
     senderPhone: string,
     avatar: string,
-    messageText: string
+    messageText: string,
+    targetLine?: 'demos' | 'sales'
   ) => Promise<string | void>;
 }
 
 export const SimulatorModal: React.FC<SimulatorModalProps> = ({
   isOpen,
   onClose,
+  initialTargetLine = 'demos',
   onSendSimulatedMessage
 }) => {
   const [selectedChannel, setSelectedChannel] = useState<ChannelType>('whatsapp');
-  const [senderName, setSenderName] = useState('Mariana Gómez');
-  const [senderPhone, setSenderPhone] = useState('+52 55 3390 1284');
-  const [messageText, setMessageText] = useState('Hola! Quiero cotizar la automatización para mi empresa de 8 asesores.');
+  const [targetLine, setTargetLine] = useState<'demos' | 'sales'>(initialTargetLine);
+  const [senderName, setSenderName] = useState('Luis Navarro');
+  const [senderPhone, setSenderPhone] = useState('+51 944 888 111');
+  const [messageText, setMessageText] = useState('Hola');
   const [isSimulating, setIsSimulating] = useState(false);
   const [lastBotReply, setLastBotReply] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTargetLine(initialTargetLine);
+      setLastBotReply(null);
+      if (initialTargetLine === 'sales') {
+        setSelectedChannel('whatsapp');
+        setMessageText('Hola, quiero información sobre sus servicios');
+      }
+    }
+  }, [isOpen, initialTargetLine]);
 
   if (!isOpen) return null;
 
@@ -46,6 +61,9 @@ export const SimulatorModal: React.FC<SimulatorModalProps> = ({
 
   const handleApplyScenario = (scenario: QuickLeadScenario) => {
     setSelectedChannel(scenario.channel);
+    if (scenario.targetLine) {
+      setTargetLine(scenario.targetLine);
+    }
     setSenderName(scenario.senderName);
     setSenderPhone(scenario.senderPhone);
     setMessageText(scenario.message);
@@ -69,7 +87,8 @@ export const SimulatorModal: React.FC<SimulatorModalProps> = ({
         senderName,
         senderPhone,
         avatar,
-        messageText
+        messageText,
+        targetLine
       );
 
       if (botReply) {
@@ -103,13 +122,45 @@ export const SimulatorModal: React.FC<SimulatorModalProps> = ({
               Envía un mensaje como si fueras un cliente real desde cualquier red social y mira cómo OmniBot IA y el CRM reaccionan en tiempo real.
             </p>
 
-            {/* Connected Number Badge */}
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-slate-300 font-medium">Línea Oficial WhatsApp Conectada:</span>
+            {/* Connected Number Selector */}
+            <div className="mt-3 p-2 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block px-1">
+                Selecciona la Línea WhatsApp Destino:
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedChannel('whatsapp');
+                    setTargetLine('demos');
+                    setLastBotReply(null);
+                  }}
+                  className={`p-2 rounded-lg text-left border transition-all ${
+                    targetLine === 'demos'
+                      ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <div className="text-[11px] font-bold">📱 Línea 1: Demos</div>
+                  <div className="text-[10px] font-mono">+51 986 150 562</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedChannel('whatsapp');
+                    setTargetLine('sales');
+                    setLastBotReply(null);
+                  }}
+                  className={`p-2 rounded-lg text-left border transition-all ${
+                    targetLine === 'sales'
+                      ? 'bg-indigo-500/20 border-indigo-500/60 text-indigo-200'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <div className="text-[11px] font-bold">🚀 Línea 2: Digital MYK</div>
+                  <div className="text-[10px] font-mono">+51 929 327 654</div>
+                </button>
               </div>
-              <span className="font-mono font-bold text-emerald-400">+51 986 150 562</span>
             </div>
 
             {/* Scenarios 1-Click buttons */}
@@ -248,9 +299,13 @@ export const SimulatorModal: React.FC<SimulatorModalProps> = ({
                 </div>
                 <div>
                   <h4 className="text-xs font-bold leading-none">
-                    {selectedChannel === 'whatsapp' ? 'WhatsApp (+51 986 150 562)' : 'NovaTech Oficial'}
+                    {selectedChannel === 'whatsapp'
+                      ? (targetLine === 'sales' ? 'Digital MYK Lab (+51 929 327 654)' : 'WhatsApp (+51 986 150 562)')
+                      : 'Digital MYK Lab Oficial'}
                   </h4>
-                  <span className="text-[9px] opacity-90 block mt-0.5">En línea • Bot IA Gemini 24/7</span>
+                  <span className="text-[9px] opacity-90 block mt-0.5">
+                    {targetLine === 'sales' ? 'Asesor Comercial IA • Respuesta Inmediata' : 'En línea • Bot IA Gemini 24/7'}
+                  </span>
                 </div>
               </div>
             </div>
