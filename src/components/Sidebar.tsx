@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { ChannelConfig } from '../types';
 
-export type ActiveView = 'inbox' | 'crm' | 'demos' | 'automations' | 'channels' | 'analytics' | 'simulator';
+export type ActiveView = 'inbox' | 'crm' | 'digital_crm' | 'demos' | 'automations' | 'channels' | 'analytics' | 'simulator';
 
 interface SidebarProps {
   activeView: ActiveView;
@@ -37,11 +37,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems = [
     {
-      id: 'demos' as ActiveView,
-      label: 'Módulos de Negocio',
-      sublabel: 'Demos & Ventas MYK Lab',
-      icon: Sparkles,
+      id: 'digital_crm' as ActiveView,
+      label: 'Digital MYK Lab PRO',
+      sublabel: 'CRM & Línea 929 327 654',
+      icon: TrendingUp,
       badge: 'PRO',
+      badgeColor: 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+    },
+    {
+      id: 'demos' as ActiveView,
+      label: 'Demos para Clientes',
+      sublabel: 'Dental & Belleza (986...)',
+      icon: Sparkles,
+      badge: '2 DEMOS',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold'
     },
     {

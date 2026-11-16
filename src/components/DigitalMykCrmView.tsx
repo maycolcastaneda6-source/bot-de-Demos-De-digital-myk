@@ -1,0 +1,1200 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Smartphone,
+  Table,
+  Kanban,
+  Globe,
+  Settings,
+  Send,
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  RefreshCw,
+  Clock,
+  UserCheck,
+  TrendingUp,
+  MessageCircle,
+  Plus,
+  Activity,
+  Terminal,
+  Search,
+  Wallet,
+  Building2,
+  Eye,
+  BadgeCheck,
+  Filter
+} from 'lucide-react';
+import { GreenApiConfig, SalesLead, SalesLeadStage } from '../types';
+
+interface DigitalMykCrmViewProps {
+  salesLeads: SalesLead[];
+  salesGreenApiConfig: GreenApiConfig;
+  onUpdateSalesLeadStatus: (id: string, status: SalesLead['status']) => void;
+  onUpdateSalesLead: (id: string, updates: Partial<SalesLead>) => void;
+  onAddSalesLead: (lead: SalesLead) => void;
+  onUpdateSalesGreenApiConfig: (config: Partial<GreenApiConfig>) => void;
+  onOpenSimulator: () => void;
+}
+
+export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
+  salesLeads,
+  salesGreenApiConfig,
+  onUpdateSalesLeadStatus,
+  onUpdateSalesLead,
+  onAddSalesLead,
+  onUpdateSalesGreenApiConfig,
+  onOpenSimulator
+}) => {
+  // CRM PRO UI states
+  const [crmViewMode, setCrmViewMode] = useState<'kanban' | 'table'>('kanban');
+  const [salesSearch, setSalesSearch] = useState('');
+  const [salesStageFilter, setSalesStageFilter] = useState<string>('ALL');
+  const [selectedSalesLeadId, setSelectedSalesLeadId] = useState<string | null>(null);
+  const [showPaymentAccounts, setShowPaymentAccounts] = useState(false);
+  const [showGreenPanel, setShowGreenPanel] = useState(false);
+  const [copiedAccountKey, setCopiedAccountKey] = useState<string | null>(null);
+
+  // Add Lead Modal state
+  const [showAddSalesModal, setShowAddSalesModal] = useState(false);
+  const [newLeadName, setNewLeadName] = useState('');
+  const [newLeadPhone, setNewLeadPhone] = useState('+51 9');
+  const [newLeadService, setNewLeadService] = useState('Combo Asistente IA + Web Gratis');
+  const [newLeadBusiness, setNewLeadBusiness] = useState('');
+  const [newLeadValue, setNewLeadValue] = useState('1490');
+  const [newLeadPaymentMethod, setNewLeadPaymentMethod] = useState('Yape (929327654)');
+
+  // Line 2 Dedicated Green-API State (+51 929 327 654 / Instance 710722803080)
+  const [salesIdInstance, setSalesIdInstance] = useState(salesGreenApiConfig.idInstance || '710722803080');
+  const [salesApiTokenInstance, setSalesApiTokenInstance] = useState(salesGreenApiConfig.apiTokenInstance || '');
+  const [salesApiUrl, setSalesApiUrl] = useState(salesGreenApiConfig.apiUrl || 'https://7107.api.greenapi.com');
+  const [salesConnectedPhone, setSalesConnectedPhone] = useState(salesGreenApiConfig.connectedPhone || '+51 929 327 654');
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [copiedWebhook, setCopiedWebhook] = useState(false);
+  const [diagnosing, setDiagnosing] = useState(false);
+  const [diagnoseResult, setDiagnoseResult] = useState<any>(null);
+  const [salesTrafficLogs, setSalesTrafficLogs] = useState<any[]>([]);
+  const [testPhone, setTestPhone] = useState('+51 929 327 654');
+  const [testMessage, setTestMessage] = useState('Hola, prueba de conexión Digital MYK Lab (+51 929 327 654)');
+  const [testSending, setTestSending] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [forcePolling, setForcePolling] = useState(false);
+  const [pollResult, setPollResult] = useState<string | null>(null);
+  const [queueModeLoading, setQueueModeLoading] = useState(false);
+  const [queueModeResult, setQueueModeResult] = useState<string | null>(null);
+  const [settingWebhook, setSettingWebhook] = useState(false);
+  const [setWebhookResult, setSetWebhookResult] = useState<string | null>(null);
+  const [isSalesPollingActive, setIsSalesPollingActive] = useState(true);
+
+  const currentHost = typeof window !== 'undefined' ? window.location.origin : 'https://omniflow-bot.onrender.com';
+  const salesWebhookUrl = `${currentHost}/api/green-api/sales/webhook`;
+
+  const fetchSalesLogs = useCallback(() => {
+    fetch('/api/green-api/sales/logs')
+      .then(r => r.json())
+      .then(data => {
+        if (data.logs) setSalesTrafficLogs(data.logs);
+        if (data.config?.pollingEnabled !== undefined) {
+          setIsSalesPollingActive(data.config.pollingEnabled);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchSalesLogs();
+    const interval = setInterval(fetchSalesLogs, 3000);
+    return () => clearInterval(interval);
+  }, [fetchSalesLogs]);
+
+  useEffect(() => {
+    if (salesGreenApiConfig.idInstance && !salesIdInstance) {
+      setSalesIdInstance(salesGreenApiConfig.idInstance);
+    }
+    if (salesGreenApiConfig.apiUrl && salesApiUrl === 'https://api.greenapi.com') {
+      setSalesApiUrl(salesGreenApiConfig.apiUrl);
+    }
+  }, [salesGreenApiConfig]);
+
+  const handleIdInstanceChange = (val: string) => {
+    setSalesIdInstance(val);
+    const clean = val.trim();
+    if (clean.length >= 4) {
+      setSalesApiUrl(`https://${clean.slice(0, 4)}.api.greenapi.com`);
+    }
+  };
+
+  const handleSaveGreenConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateSalesGreenApiConfig({
+      idInstance: salesIdInstance.trim(),
+      apiTokenInstance: salesApiTokenInstance.trim(),
+      apiUrl: salesApiUrl.trim(),
+      connectedPhone: salesConnectedPhone.trim(),
+      status: 'connected'
+    });
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
+  };
+
+  const handleDiagnose = async () => {
+    setDiagnosing(true);
+    setDiagnoseResult(null);
+    try {
+      const res = await fetch(
+        `/api/green-api/sales/diagnose?idInstance=${encodeURIComponent(salesIdInstance.trim())}&apiTokenInstance=${encodeURIComponent(salesApiTokenInstance.trim())}&apiUrl=${encodeURIComponent(salesApiUrl.trim())}`
+      );
+      const data = await res.json();
+      setDiagnoseResult(data);
+    } catch (e: any) {
+      setDiagnoseResult({ success: false, error: e.message });
+    } finally {
+      setDiagnosing(false);
+    }
+  };
+
+  const handleActivateQueueMode = async () => {
+    setQueueModeLoading(true);
+    setQueueModeResult(null);
+    try {
+      const res = await fetch('/api/green-api/sales/set-queue-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idInstance: salesIdInstance.trim(),
+          apiTokenInstance: salesApiTokenInstance.trim(),
+          apiUrl: salesApiUrl.trim()
+        })
+      });
+      const data = await res.json();
+      setQueueModeResult(data.success ? `✅ ${data.message}` : `❌ ${data.error}`);
+      fetchSalesLogs();
+    } catch (e: any) {
+      setQueueModeResult(`❌ ${e.message}`);
+    } finally {
+      setQueueModeLoading(false);
+    }
+  };
+
+  const handleSetWebhookUrl = async () => {
+    setSettingWebhook(true);
+    setSetWebhookResult(null);
+    try {
+      const res = await fetch('/api/green-api/sales/set-webhook-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idInstance: salesIdInstance.trim(),
+          apiTokenInstance: salesApiTokenInstance.trim(),
+          apiUrl: salesApiUrl.trim(),
+          webhookUrl: salesWebhookUrl
+        })
+      });
+      const data = await res.json();
+      setSetWebhookResult(data.success ? `✅ ${data.message}` : `❌ ${data.error}`);
+      fetchSalesLogs();
+    } catch (e: any) {
+      setSetWebhookResult(`❌ ${e.message}`);
+    } finally {
+      setSettingWebhook(false);
+    }
+  };
+
+  const handleTogglePolling = async () => {
+    try {
+      const res = await fetch('/api/green-api/sales/toggle-polling', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !isSalesPollingActive })
+      });
+      const data = await res.json();
+      if (data.success) setIsSalesPollingActive(data.pollingEnabled);
+    } catch (e) {}
+  };
+
+  const handleForcePoll = async () => {
+    setForcePolling(true);
+    setPollResult(null);
+    try {
+      const res = await fetch('/api/green-api/sales/poll-now', { method: 'POST' });
+      const data = await res.json();
+      setPollResult(data.success ? `✅ ${data.message}` : `❌ ${data.error}`);
+      fetchSalesLogs();
+    } catch (e: any) {
+      setPollResult(`❌ ${e.message}`);
+    } finally {
+      setForcePolling(false);
+    }
+  };
+
+  const handleSendTest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTestSending(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/green-api/sales/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: testPhone, message: testMessage })
+      });
+      const data = await res.json();
+      setTestResult(data.success ? '✅ Mensaje enviado con éxito' : `❌ Error: ${data.error || 'Verifica credenciales'}`);
+      fetchSalesLogs();
+    } catch (e: any) {
+      setTestResult(`❌ ${e.message}`);
+    } finally {
+      setTestSending(false);
+    }
+  };
+
+  const handleCreateSalesLead = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLeadName.trim()) return;
+    const item: SalesLead = {
+      id: `lead_${Date.now()}`,
+      registrationDate: new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+      clientName: newLeadName.trim(),
+      whatsapp: newLeadPhone.trim(),
+      serviceInterest: newLeadService,
+      businessType: newLeadBusiness.trim() || 'Por calificar',
+      lastMessage: 'Registro comercial directo en CRM PRO',
+      status: '🔥 Nuevo Lead',
+      estimatedValue: Number(newLeadValue) || 1490,
+      paymentMethod: newLeadPaymentMethod,
+      paymentStatus: 'Pendiente',
+      priority: 'Alta',
+      notes: 'Registrado en CRM PRO Digital MYK Lab'
+    };
+    onAddSalesLead(item);
+    setShowAddSalesModal(false);
+    setNewLeadName('');
+    setNewLeadBusiness('');
+  };
+
+  // CRM PRO Metrics & Filters
+  const crmStages: SalesLeadStage[] = [
+    '🔥 Nuevo Lead',
+    '💬 En Asesoría',
+    '📄 Cotizado',
+    '💳 Pago / Cierre',
+    '✅ Cerrado'
+  ];
+
+  const filteredSalesLeads = salesLeads.filter(l => {
+    const matchesStage = salesStageFilter === 'ALL' || l.status === salesStageFilter;
+    const q = salesSearch.trim().toLowerCase();
+    const matchesSearch =
+      !q ||
+      l.clientName.toLowerCase().includes(q) ||
+      l.whatsapp.toLowerCase().includes(q) ||
+      l.serviceInterest.toLowerCase().includes(q) ||
+      (l.businessType || '').toLowerCase().includes(q);
+    return matchesStage && matchesSearch;
+  });
+
+  const totalPipelinePEN = salesLeads.reduce((acc, l) => acc + (Number(l.estimatedValue) || 0), 0);
+  const closedOrPayingCount = salesLeads.filter(l => l.status === '✅ Cerrado' || l.status === '💳 Pago / Cierre').length;
+  const quotedCount = salesLeads.filter(l => l.status === '📄 Cotizado').length;
+  const activeSelectedLead = salesLeads.find(l => l.id === selectedSalesLeadId) || null;
+
+  const copyAccountText = (key: string, value: string) => {
+    navigator.clipboard.writeText(value);
+    setCopiedAccountKey(key);
+    setTimeout(() => setCopiedAccountKey(null), 1800);
+  };
+
+  const fullPaymentTemplate = `Cuentas Oficiales Digital MYK Lab\nTitular: Maycol Castañeda\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Ahorro Soles: Cta 8330613655 | CCI 00972420833061365561`;
+
+  return (
+    <div className="flex-1 h-full overflow-y-auto bg-slate-950 p-6 space-y-5">
+      {/* Corporate Header Banner — 100% Dedicated to Digital MYK Lab */}
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-cyan-950/60 via-slate-900 to-indigo-950/60 border border-cyan-500/30 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 shadow-xl">
+        <div className="flex items-start gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-slate-950 border border-cyan-500/40 overflow-hidden flex items-center justify-center shrink-0 shadow-lg">
+            <img src="/digital_myk_logo.jpg" alt="Digital MYK Lab" className="w-full h-full object-cover" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-extrabold text-white tracking-tight">CRM Comercial PRO — Digital MYK Lab</h2>
+              <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono text-xs font-bold">
+                {salesConnectedPhone}
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                Botones Interactivos Activos 24/7
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-1 max-w-2xl">
+              Canal comercial corporativo con <strong>botones interactivos en WhatsApp</strong>, cuentas oficiales de cobro a nombre de <strong>Maycol Castañeda</strong> y seguimiento CRM en tiempo real.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px]">
+              <a
+                href="https://digitalmyklab.onrender.com/"
+                target="_blank"
+                rel="noreferrer"
+                className="text-cyan-300 hover:text-cyan-200 font-semibold inline-flex items-center gap-1"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>https://digitalmyklab.onrender.com/</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+              <span className="text-slate-600">•</span>
+              <span className="text-slate-400">Instancia Green-API: <strong className="text-slate-200 font-mono">{salesIdInstance}</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            onClick={() => setShowPaymentAccounts(prev => !prev)}
+            className={`px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer ${
+              showPaymentAccounts
+                ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-950/50'
+                : 'bg-slate-800 hover:bg-slate-700 text-emerald-300 border-emerald-500/30'
+            }`}
+          >
+            <Wallet className="w-4 h-4" />
+            <span>Cuentas de Cobro</span>
+          </button>
+          <button
+            onClick={onOpenSimulator}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-cyan-950/50 cursor-pointer"
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>Chat con Botones</span>
+          </button>
+          <button
+            onClick={() => setShowGreenPanel(prev => !prev)}
+            className={`px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 border transition-all cursor-pointer ${
+              showGreenPanel
+                ? 'bg-purple-600 text-white border-purple-500'
+                : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/30'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            <span>WhatsApp API ({salesIdInstance.slice(-4)})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Collapsible Official Payment Accounts Panel */}
+      {showPaymentAccounts && (
+        <div className="p-5 rounded-2xl bg-slate-900 border border-emerald-500/35 shadow-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-extrabold text-white">Cuentas Oficiales de Pago — Titular: Maycol Castañeda</h4>
+                <p className="text-[11px] text-slate-400">
+                  El bot entrega estas cuentas automáticamente en WhatsApp cuando el cliente pulsa "Medios de Pago".
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => copyAccountText('all_accounts', fullPaymentTemplate)}
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              <span>{copiedAccountKey === 'all_accounts' ? '¡Copiado todo!' : 'Copiar todas las cuentas'}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-purple-500/30 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-purple-300">Yape</span>
+                <button
+                  onClick={() => copyAccountText('yape', '929327654')}
+                  className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-200 hover:bg-purple-500/30 cursor-pointer"
+                >
+                  {copiedAccountKey === 'yape' ? 'Copiado' : 'Copiar'}
+                </button>
+              </div>
+              <p className="font-mono text-sm font-bold text-white">929327654</p>
+              <p className="text-[10px] text-slate-400">Titular: Maycol Castañeda</p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-cyan-500/30 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-cyan-300">Plin</span>
+                <button
+                  onClick={() => copyAccountText('plin', '921034349')}
+                  className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-200 hover:bg-cyan-500/30 cursor-pointer"
+                >
+                  {copiedAccountKey === 'plin' ? 'Copiado' : 'Copiar'}
+                </button>
+              </div>
+              <p className="font-mono text-sm font-bold text-white">921034349</p>
+              <p className="text-[10px] text-slate-400">Titular: Maycol Castañeda</p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-rose-500/30 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-rose-300">Banco de la Nación</span>
+                <button
+                  onClick={() => copyAccountText('bn', '018-765-004765342509-81')}
+                  className="text-[10px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-200 hover:bg-rose-500/30 cursor-pointer"
+                >
+                  {copiedAccountKey === 'bn' ? 'CCI Copiado' : 'Copiar CCI'}
+                </button>
+              </div>
+              <p className="font-mono text-[11px] font-bold text-white">Cta: 04765342509</p>
+              <p className="font-mono text-[11px] text-slate-300">CCI: 018-765-004765342509-81</p>
+              <p className="text-[10px] text-slate-400">Titular: Maycol Castañeda</p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-red-500/30 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-red-300">Scotiabank (Ahorro Soles)</span>
+                <button
+                  onClick={() => copyAccountText('scotia', '00972420833061365561')}
+                  className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-200 hover:bg-red-500/30 cursor-pointer"
+                >
+                  {copiedAccountKey === 'scotia' ? 'CCI Copiado' : 'Copiar CCI'}
+                </button>
+              </div>
+              <p className="font-mono text-[11px] font-bold text-white">Cta: 8330613655</p>
+              <p className="font-mono text-[11px] text-slate-300">CCI: 00972420833061365561</p>
+              <p className="text-[10px] text-slate-400">Titular: Maycol Castañeda</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Collapsible Dedicated Green-API Panel for Line +51 929 327 654 ONLY */}
+      {showGreenPanel && (
+        <div className="p-5 rounded-2xl bg-slate-900 border border-cyan-500/35 shadow-xl space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div>
+              <h4 className="text-sm font-extrabold text-white">
+                Conectividad WhatsApp — Digital MYK Lab ({salesConnectedPhone})
+              </h4>
+              <p className="text-xs text-slate-400">
+                Configuración independiente de tu instancia Green-API <strong className="text-cyan-300">{salesIdInstance}</strong>.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDiagnose}
+                disabled={diagnosing}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{diagnosing ? 'Verificando...' : 'Diagnóstico Instancia'}</span>
+              </button>
+            </div>
+          </div>
+
+          <form onSubmit={handleSaveGreenConfig} className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">Número WhatsApp:</label>
+              <input
+                type="text"
+                value={salesConnectedPhone}
+                onChange={(e) => setSalesConnectedPhone(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-cyan-300 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">idInstance:</label>
+              <input
+                type="text"
+                value={salesIdInstance}
+                onChange={(e) => handleIdInstanceChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">apiTokenInstance:</label>
+              <input
+                type="password"
+                value={salesApiTokenInstance}
+                onChange={(e) => setSalesApiTokenInstance(e.target.value)}
+                placeholder="Pega tu token aquí"
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">Host API URL:</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={salesApiUrl}
+                  onChange={(e) => setSalesApiUrl(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
+                />
+                <button
+                  type="submit"
+                  className="px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold shrink-0 cursor-pointer"
+                >
+                  {saveSuccess ? '✓' : 'Guardar'}
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {/* Webhook URL & Controls */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-200">Webhook Exclusivo Digital MYK Lab:</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(salesWebhookUrl);
+                    setCopiedWebhook(true);
+                    setTimeout(() => setCopiedWebhook(false), 1800);
+                  }}
+                  className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 hover:bg-slate-700 flex items-center gap-1 cursor-pointer"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>{copiedWebhook ? 'Copiado' : 'Copiar'}</span>
+                </button>
+              </div>
+              <p className="font-mono text-[11px] text-cyan-400 break-all">{salesWebhookUrl}</p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  onClick={handleSetWebhookUrl}
+                  disabled={settingWebhook}
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold cursor-pointer"
+                >
+                  {settingWebhook ? 'Aplicando...' : '🔗 Aplicar Webhook'}
+                </button>
+                <button
+                  onClick={handleActivateQueueMode}
+                  disabled={queueModeLoading}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer"
+                >
+                  ⚡ Modo Cola Directo
+                </button>
+                <button
+                  onClick={handleTogglePolling}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer"
+                >
+                  {isSalesPollingActive ? '⏸️ Pausar Polling' : '▶️ Reanudar Polling'}
+                </button>
+                <button
+                  onClick={handleForcePoll}
+                  disabled={forcePolling}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3 h-3 ${forcePolling ? 'animate-spin' : ''}`} />
+                  <span>Sincronizar Ahora</span>
+                </button>
+              </div>
+              {(setWebhookResult || queueModeResult || pollResult) && (
+                <p className="text-[11px] text-emerald-300">{setWebhookResult || queueModeResult || pollResult}</p>
+              )}
+              {diagnoseResult && (
+                <div className="p-2 rounded bg-slate-900 border border-slate-800 text-[11px]">
+                  Estado Instancia: <strong className="text-emerald-400">{diagnoseResult.stateInstance?.stateInstance || diagnoseResult.error || 'Desconocido'}</strong>
+                </div>
+              )}
+            </div>
+
+            {/* Test Send + Live Logs */}
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+              <form onSubmit={handleSendTest} className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                  placeholder="+51 9..."
+                  className="w-36 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300 font-mono"
+                />
+                <input
+                  type="text"
+                  value={testMessage}
+                  onChange={(e) => setTestMessage(e.target.value)}
+                  className="flex-1 min-w-[140px] px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white"
+                />
+                <button
+                  type="submit"
+                  disabled={testSending}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Send className="w-3 h-3" />
+                  <span>{testSending ? '...' : 'Enviar'}</span>
+                </button>
+              </form>
+              {testResult && <p className="text-[11px] text-slate-300">{testResult}</p>}
+
+              <div className="border-t border-slate-800 pt-2">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 mb-1.5">
+                  <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Tráfico en Vivo (+51 929 327 654)</span>
+                </div>
+                <div className="max-h-28 overflow-y-auto space-y-1 text-[10px] font-mono">
+                  {salesTrafficLogs.length === 0 ? (
+                    <p className="text-slate-600">Sin eventos recientes en esta sesión.</p>
+                  ) : (
+                    salesTrafficLogs.slice(0, 8).map(log => (
+                      <div key={log.id} className="flex items-start justify-between gap-2 text-slate-300 bg-slate-900/70 px-2 py-1 rounded">
+                        <span className="truncate">{log.status} {log.phone ? `(${log.phone})` : ''} {log.text ? `• ${log.text}` : ''}</span>
+                        <span className="text-slate-500 shrink-0">{log.timestamp}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CRM PRO KPI Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>Clientes en CRM</span>
+            <UserCheck className="w-4 h-4 text-cyan-400" />
+          </div>
+          <p className="text-2xl font-extrabold text-white mt-1">{salesLeads.length}</p>
+          <p className="text-[10px] text-cyan-400 mt-0.5">Captura automática 24/7</p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>En Cotización</span>
+            <TrendingUp className="w-4 h-4 text-indigo-400" />
+          </div>
+          <p className="text-2xl font-extrabold text-white mt-1">{quotedCount}</p>
+          <p className="text-[10px] text-indigo-300 mt-0.5">Propuestas enviadas</p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>Pagos / Cierres</span>
+            <BadgeCheck className="w-4 h-4 text-emerald-400" />
+          </div>
+          <p className="text-2xl font-extrabold text-emerald-400 mt-1">{closedOrPayingCount}</p>
+          <p className="text-[10px] text-emerald-300 mt-0.5">Yape, Plin o Transferencia</p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-900 border border-emerald-500/30">
+          <div className="flex items-center justify-between text-xs text-slate-300">
+            <span>Pipeline Estimado</span>
+            <Wallet className="w-4 h-4 text-emerald-400" />
+          </div>
+          <p className="text-2xl font-extrabold text-white font-mono mt-1">
+            S/ {totalPipelinePEN.toLocaleString('es-PE')}
+          </p>
+          <p className="text-[10px] text-emerald-300 mt-0.5">Proyección comercial activa</p>
+        </div>
+      </div>
+
+      {/* CRM PRO Toolbar + View Switcher (Kanban / Tabla PRO) */}
+      <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+        <div className="p-4 bg-slate-950/90 border-b border-slate-800 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2.5 flex-1">
+            <div className="relative flex-1 min-w-[210px] max-w-sm">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={salesSearch}
+                onChange={(e) => setSalesSearch(e.target.value)}
+                placeholder="Buscar cliente, WhatsApp, servicio o rubro..."
+                className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={salesStageFilter}
+                onChange={(e) => setSalesStageFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-200 focus:outline-none cursor-pointer"
+              >
+                <option value="ALL">Todas las etapas</option>
+                {crmStages.map(st => (
+                  <option key={st} value={st}>{st}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-xl bg-slate-900 border border-slate-800 p-0.5">
+              <button
+                onClick={() => setCrmViewMode('kanban')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  crmViewMode === 'kanban' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Kanban className="w-3.5 h-3.5" />
+                <span>Pipeline Kanban</span>
+              </button>
+              <button
+                onClick={() => setCrmViewMode('table')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  crmViewMode === 'table' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Table className="w-3.5 h-3.5" />
+                <span>Tabla PRO</span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowAddSalesModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nuevo Cliente</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 5-Column Kanban Pipeline */}
+        {crmViewMode === 'kanban' ? (
+          <div className="p-4 overflow-x-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-3 min-w-[980px]">
+              {crmStages.map(stage => {
+                const stageLeads = filteredSalesLeads.filter(l => l.status === stage);
+                const stageTotal = stageLeads.reduce((acc, l) => acc + (Number(l.estimatedValue) || 0), 0);
+                return (
+                  <div key={stage} className="rounded-2xl bg-slate-950/70 border border-slate-800 flex flex-col min-h-[340px]">
+                    <div className="p-3 border-b border-slate-800 flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-extrabold text-white">{stage}</div>
+                        <div className="text-[10px] font-mono text-emerald-400">
+                          S/ {stageTotal.toLocaleString('es-PE')}
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px] font-bold">
+                        {stageLeads.length}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 space-y-2.5 flex-1 overflow-y-auto max-h-[480px]">
+                      {stageLeads.length === 0 ? (
+                        <div className="text-center py-8 text-[11px] text-slate-600">
+                          Sin clientes en esta etapa
+                        </div>
+                      ) : (
+                        stageLeads.map(lead => (
+                          <div
+                            key={lead.id}
+                            className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-500/40 transition-all space-y-2"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <h5 className="text-xs font-bold text-white leading-tight">{lead.clientName}</h5>
+                                <p className="text-[10px] font-mono text-cyan-400">{lead.whatsapp}</p>
+                              </div>
+                              {lead.estimatedValue ? (
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-mono text-[10px] font-bold shrink-0">
+                                  S/ {lead.estimatedValue}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-1">
+                              <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 text-[10px] font-semibold">
+                                {lead.serviceInterest}
+                              </span>
+                              {lead.paymentStatus && (
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${
+                                  lead.paymentStatus === 'Confirmado'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                    : lead.paymentStatus === 'Por Verificar'
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                                }`}>
+                                  {lead.paymentStatus}
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-[11px] text-slate-400 line-clamp-2 italic">
+                              "{lead.lastMessage}"
+                            </p>
+
+                            <div className="pt-1 border-t border-slate-800/80 flex items-center justify-between gap-1.5">
+                              <button
+                                onClick={() => setSelectedSalesLeadId(lead.id)}
+                                className="flex-1 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                              >
+                                <Eye className="w-3 h-3 text-cyan-400" />
+                                <span>Ficha / Chat</span>
+                              </button>
+                              <a
+                                href={`https://wa.me/${lead.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hola ${lead.clientName}, te saluda Maycol Castañeda de Digital MYK Lab respecto a ${lead.serviceInterest}.`)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1"
+                              >
+                                <MessageCircle className="w-3 h-3" />
+                                <span>WA</span>
+                              </a>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* Tabla PRO View */
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-950/90 text-slate-400 border-b border-slate-800 font-semibold">
+                  <th className="p-3 w-10 text-center border-r border-slate-800">#</th>
+                  <th className="p-3 border-r border-slate-800">Último Contacto</th>
+                  <th className="p-3 border-r border-slate-800">Cliente / Rubro</th>
+                  <th className="p-3 border-r border-slate-800">WhatsApp</th>
+                  <th className="p-3 border-r border-slate-800">Solución</th>
+                  <th className="p-3 border-r border-slate-800">Valor / Pago</th>
+                  <th className="p-3 border-r border-slate-800">Etapa Pipeline</th>
+                  <th className="p-3">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {filteredSalesLeads.map((lead, idx) => (
+                  <tr key={lead.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="p-3 text-center text-slate-400 border-r border-slate-800">{idx + 1}</td>
+                    <td className="p-3 text-slate-300 border-r border-slate-800 whitespace-nowrap">
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        {lead.registrationDate}
+                      </span>
+                    </td>
+                    <td className="p-3 font-bold text-white border-r border-slate-800">
+                      <div>{lead.clientName}</div>
+                      {lead.businessType && (
+                        <div className="text-[10px] text-slate-400 font-normal">{lead.businessType}</div>
+                      )}
+                    </td>
+                    <td className="p-3 text-cyan-400 font-mono border-r border-slate-800">{lead.whatsapp}</td>
+                    <td className="p-3 border-r border-slate-800">
+                      <span className="px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 font-semibold border border-indigo-500/30">
+                        {lead.serviceInterest}
+                      </span>
+                    </td>
+                    <td className="p-3 border-r border-slate-800 whitespace-nowrap">
+                      <div className="font-mono font-bold text-emerald-400">S/ {lead.estimatedValue || 0}</div>
+                      <div className="text-[10px] text-slate-400">
+                        {lead.paymentMethod || 'Por definir'} • {lead.paymentStatus || 'Pendiente'}
+                      </div>
+                    </td>
+                    <td className="p-3 border-r border-slate-800">
+                      <select
+                        value={lead.status}
+                        onChange={(e) => onUpdateSalesLeadStatus(lead.id, e.target.value as any)}
+                        className="px-2.5 py-1 rounded-lg text-xs font-bold border bg-slate-950 border-slate-700 text-slate-200 focus:outline-none cursor-pointer"
+                      >
+                        {crmStages.map(st => (
+                          <option key={st} value={st}>{st}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setSelectedSalesLeadId(lead.id)}
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-[11px] inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <Eye className="w-3 h-3 text-cyan-400" />
+                          <span>Ver Ficha</span>
+                        </button>
+                        <a
+                          href={`https://wa.me/${lead.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hola ${lead.clientName}, te saluda Maycol Castañeda de Digital MYK Lab respecto a ${lead.serviceInterest}.`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-semibold text-[11px] inline-flex items-center gap-1"
+                        >
+                          <MessageCircle className="w-3 h-3" />
+                          <span>WA</span>
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 4 Corporate Service Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/40 transition-all space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-lg">🤖</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">Servicio 1</span>
+          </div>
+          <h4 className="text-xs font-extrabold text-white">Chatbots IA 24/7</h4>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Atención inmediata en WhatsApp con botones interactivos, calificación de prospectos y agendamiento automático.
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-purple-500/40 transition-all space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-lg">📱</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">Servicio 2</span>
+          </div>
+          <h4 className="text-xs font-extrabold text-white">Apps a la Medida</h4>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Sistemas CRM, control de inventario, pedidos, ventas y reportes ejecutivos en tiempo real para tu empresa.
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-pink-500/40 transition-all space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="w-9 h-9 rounded-xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center text-lg">🌐</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-pink-500/10 text-pink-300 border border-pink-500/20">Servicio 3</span>
+          </div>
+          <h4 className="text-xs font-extrabold text-white">Webs Profesionales PRO</h4>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Arquitectura de alta velocidad, Certificado SSL, posicionamiento SEO para Google y enlace directo a WhatsApp.
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/40 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-lg">🎁</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Plan Integral</span>
+          </div>
+          <h4 className="text-xs font-extrabold text-amber-200">Asistente IA + Web GRATIS</h4>
+          <p className="text-[11px] text-slate-300 leading-relaxed">
+            Al implementar tu Asistente IA 24/7 incluimos tu Sitio Web Profesional sin costo adicional, con 99.9% Uptime y soporte continuo.
+          </p>
+        </div>
+      </div>
+
+      {/* Add Lead Modal */}
+      {showAddSalesModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <h4 className="text-sm font-bold text-white">💼 Nuevo Cliente — CRM PRO Digital MYK Lab</h4>
+              <button onClick={() => setShowAddSalesModal(false)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <form onSubmit={handleCreateSalesLead} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Nombre del Cliente:</label>
+                <input
+                  type="text"
+                  required
+                  value={newLeadName}
+                  onChange={(e) => setNewLeadName(e.target.value)}
+                  placeholder="ej. Luis Navarro"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">WhatsApp:</label>
+                <input
+                  type="text"
+                  required
+                  value={newLeadPhone}
+                  onChange={(e) => setNewLeadPhone(e.target.value)}
+                  placeholder="+51 987 654 321"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-cyan-400 font-mono"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Solución:</label>
+                  <select
+                    value={newLeadService}
+                    onChange={(e) => setNewLeadService(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
+                  >
+                    <option value="Combo Asistente IA + Web Gratis">Combo IA + Web Gratis</option>
+                    <option value="Chatbot IA 24/7">Chatbot IA 24/7</option>
+                    <option value="Web Profesional PRO">Web Profesional PRO</option>
+                    <option value="App a la Medida">App a la Medida</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Valor Estimado (S/):</label>
+                  <input
+                    type="number"
+                    value={newLeadValue}
+                    onChange={(e) => setNewLeadValue(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-emerald-400 font-mono"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Rubro / Empresa:</label>
+                  <input
+                    type="text"
+                    value={newLeadBusiness}
+                    onChange={(e) => setNewLeadBusiness(e.target.value)}
+                    placeholder="ej. Constructora, Clínica"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Medio de Pago:</label>
+                  <select
+                    value={newLeadPaymentMethod}
+                    onChange={(e) => setNewLeadPaymentMethod(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
+                  >
+                    <option value="Yape (929327654)">Yape (929327654)</option>
+                    <option value="Plin (921034349)">Plin (921034349)</option>
+                    <option value="Banco de la Nación">Banco de la Nación</option>
+                    <option value="Scotiabank Ahorro Soles">Scotiabank Ahorro Soles</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddSalesModal(false)}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold"
+                >
+                  Guardar en CRM PRO
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CRM PRO Lead Detail & Conversation Modal */}
+      {activeSelectedLead && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300 font-extrabold">
+                  {activeSelectedLead.clientName.slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h4 className="text-sm font-extrabold text-white">{activeSelectedLead.clientName}</h4>
+                  <p className="text-xs font-mono text-cyan-400">{activeSelectedLead.whatsapp} • {activeSelectedLead.serviceInterest}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedSalesLeadId(null)} className="text-slate-400 hover:text-white p-1">✕</button>
+            </div>
+
+            <div className="p-5 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+              <div className="space-y-3">
+                <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Datos Comerciales & Cobranza</h5>
+
+                <div>
+                  <label className="block text-slate-400 mb-1">Etapa del Pipeline:</label>
+                  <select
+                    value={activeSelectedLead.status}
+                    onChange={(e) => onUpdateSalesLead(activeSelectedLead.id, { status: e.target.value as any })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold"
+                  >
+                    {crmStages.map(st => <option key={st} value={st}>{st}</option>)}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1">Valor Proyecto (S/):</label>
+                    <input
+                      type="number"
+                      value={activeSelectedLead.estimatedValue || 0}
+                      onChange={(e) => onUpdateSalesLead(activeSelectedLead.id, { estimatedValue: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-emerald-400 font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">Estado del Pago:</label>
+                    <select
+                      value={activeSelectedLead.paymentStatus || 'Pendiente'}
+                      onChange={(e) => onUpdateSalesLead(activeSelectedLead.id, { paymentStatus: e.target.value as any })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-semibold"
+                    >
+                      <option value="Pendiente">Pendiente</option>
+                      <option value="Por Verificar">Por Verificar</option>
+                      <option value="Confirmado">Confirmado</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1">Medio de Pago:</label>
+                    <select
+                      value={activeSelectedLead.paymentMethod || 'Por definir'}
+                      onChange={(e) => onUpdateSalesLead(activeSelectedLead.id, { paymentMethod: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
+                    >
+                      <option value="Por definir">Por definir</option>
+                      <option value="Yape (929327654)">Yape (929327654)</option>
+                      <option value="Plin (921034349)">Plin (921034349)</option>
+                      <option value="Banco de la Nación">Banco de la Nación</option>
+                      <option value="Scotiabank Ahorro Soles">Scotiabank Ahorro Soles</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">Rubro / Empresa:</label>
+                    <input
+                      type="text"
+                      value={activeSelectedLead.businessType || ''}
+                      onChange={(e) => onUpdateSalesLead(activeSelectedLead.id, { businessType: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1">Notas de Seguimiento:</label>
+                  <textarea
+                    rows={3}
+                    value={activeSelectedLead.notes || ''}
+                    onChange={(e) => onUpdateSalesLead(activeSelectedLead.id, { notes: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200"
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <a
+                    href={`https://wa.me/${activeSelectedLead.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hola ${activeSelectedLead.clientName}, te saluda Maycol Castañeda de Digital MYK Lab. Te comparto nuestras cuentas oficiales para iniciar tu proyecto:\n\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Soles: Cta 8330613655 | CCI 00972420833061365561\nTitular: Maycol Castañeda`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-center flex items-center justify-center gap-1.5"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span>Enviar Cuentas por WhatsApp</span>
+                  </a>
+                </div>
+              </div>
+
+              <div className="space-y-2 flex flex-col">
+                <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Historial de Conversación WhatsApp</h5>
+                <div className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-2 max-h-[320px] overflow-y-auto">
+                  {activeSelectedLead.history && activeSelectedLead.history.length > 0 ? (
+                    activeSelectedLead.history.map((m, i) => (
+                      <div key={i} className={`p-2 rounded-lg text-[11px] ${m.sender === 'user' ? 'bg-emerald-950/50 border border-emerald-500/20 text-emerald-100 ml-4' : 'bg-slate-900 border border-slate-800 text-slate-200 mr-4'}`}>
+                        <div className="text-[9px] font-bold text-slate-400 mb-0.5">
+                          {m.sender === 'user' ? activeSelectedLead.clientName : 'Digital MYK Lab Bot'}
+                        </div>
+                        <p className="whitespace-pre-wrap">{m.text}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center text-slate-500 py-8 text-[11px]">
+                      Último mensaje registrado: "{activeSelectedLead.lastMessage}"
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

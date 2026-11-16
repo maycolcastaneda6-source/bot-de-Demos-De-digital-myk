@@ -39,6 +39,7 @@ import {
   SalesLead
 } from './types';
 import { LiveDemosHubView } from './components/LiveDemosHubView';
+import { DigitalMykCrmView } from './components/DigitalMykCrmView';
 
 export default function App() {
   // State with LocalStorage fallbacks
@@ -104,11 +105,11 @@ export default function App() {
   });
 
   // UI State
-  const [activeView, setActiveView] = useState<ActiveView>('demos');
+  const [activeView, setActiveView] = useState<ActiveView>('digital_crm');
   const [selectedId, setSelectedId] = useState<string>(conversations[0]?.id || 'conv_1');
   const [isCRMDrawerOpen, setIsCRMDrawerOpen] = useState(true);
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
-  const [simulatorTargetLine, setSimulatorTargetLine] = useState<'demos' | 'sales'>('demos');
+  const [simulatorTargetLine, setSimulatorTargetLine] = useState<'demos' | 'sales'>('sales');
   const [isCannedModalOpen, setIsCannedModalOpen] = useState(false);
   const [isNewConvModalOpen, setIsNewConvModalOpen] = useState(false);
   const [cannedInsertText, setCannedInsertText] = useState<string>('');
@@ -575,7 +576,10 @@ export default function App() {
         channels={channels}
         unreadTotal={unreadTotal}
         aiBotActive={botSettings.enabled}
-        onOpenSimulator={() => setIsSimulatorOpen(true)}
+        onOpenSimulator={() => {
+          setSimulatorTargetLine(activeView === 'demos' ? 'demos' : 'sales');
+          setIsSimulatorOpen(true);
+        }}
       />
 
       {/* 2. Primary Views */}
@@ -628,6 +632,21 @@ export default function App() {
               />
             )}
           </div>
+        )}
+
+        {activeView === 'digital_crm' && (
+          <DigitalMykCrmView
+            salesLeads={salesLeads}
+            salesGreenApiConfig={salesGreenApiConfig}
+            onUpdateSalesLeadStatus={handleUpdateSalesLeadStatus}
+            onUpdateSalesLead={handleUpdateSalesLead}
+            onAddSalesLead={handleAddSalesLead}
+            onUpdateSalesGreenApiConfig={handleUpdateSalesGreenApiConfig}
+            onOpenSimulator={() => {
+              setSimulatorTargetLine('sales');
+              setIsSimulatorOpen(true);
+            }}
+          />
         )}
 
         {activeView === 'demos' && (

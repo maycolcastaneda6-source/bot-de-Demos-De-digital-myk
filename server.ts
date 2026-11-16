@@ -335,6 +335,43 @@ function getGreenApiUrl(idInstance: string, apiTokenInstance: string, method: st
   return `${baseUrl}/waInstance${idInstance}/${method}/${apiTokenInstance}`;
 }
 
+function resolveGreenApiSender(senderData: any): string {
+  if (!senderData || typeof senderData !== "object") return "";
+  const candidates = [senderData.chatId, senderData.sender, senderData.senderId].filter(
+    (v): v is string => typeof v === "string" && v.trim().length > 0
+  );
+  const cUs = candidates.find(v => v.endsWith("@c.us"));
+  return cUs || candidates[0] || "";
+}
+
+function deepFindMessageText(obj: any, depth = 0): string {
+  if (!obj || typeof obj !== "object" || depth > 4) return "";
+  const priorityKeys = [
+    "buttonId",
+    "selectedButtonId",
+    "selectedId",
+    "buttonText",
+    "selectedDisplayText",
+    "selectedRowId",
+    "title",
+    "textMessage",
+    "text"
+  ];
+  for (const key of priorityKeys) {
+    if (typeof obj[key] === "string" && obj[key].trim()) {
+      return obj[key].trim();
+    }
+  }
+  for (const [k, v] of Object.entries(obj)) {
+    if (k === "quotedMessage" || k === "stanzaId" || k === "participant") continue;
+    if (v && typeof v === "object") {
+      const nested = deepFindMessageText(v, depth + 1);
+      if (nested) return nested;
+    }
+  }
+  return "";
+}
+
 function extractGreenApiMessageText(messageData: any, rawSender: string): string {
   if (!messageData || typeof messageData !== "object") return "";
   const typeMsg = messageData.typeMessage || "";
@@ -346,27 +383,60 @@ function extractGreenApiMessageText(messageData: any, rawSender: string): string
     return messageData.extendedTextMessageData?.text || "";
   }
   if (typeMsg === "quotedMessage") {
-    return messageData.extendedTextMessageData?.text || messageData.quotedMessage?.text || "";
-  }
-  if (typeMsg === "interactiveButtonsResponse" && messageData.interactiveButtonsResponse) {
     return (
-      messageData.interactiveButtonsResponse.buttonId ||
-      messageData.interactiveButtonsResponse.selectedButtonId ||
-      messageData.interactiveButtonsResponse.buttonText ||
+      messageData.extendedTextMessageData?.text ||
+      messageData.textMessageData?.textMessage ||
+      messageData.interactiveButtonsResponse?.buttonId ||
+      messageData.interactiveButtonsResponse?.buttonText ||
+      messageData.templateButtonReplyMessage?.selectedId ||
+      messageData.templateButtonReplyMessage?.selectedDisplayText ||
+      messageData.templateButtonsReplyMessage?.selectedId ||
+      messageData.templateButtonsReplyMessage?.selectedDisplayText ||
+      messageData.quotedMessage?.text ||
+      deepFindMessageText(messageData) ||
       ""
     );
+  }
+  if (typeMsg === "interactiveButtonsResponse" || typeMsg === "interactiveButtonsReply") {
+    const payload =
+      messageData.interactiveButtonsResponse ||
+      messageData.interactiveButtonsReply ||
+      messageData.interactiveButtons ||
+      messageData;
+    const direct =
+      payload?.buttonId ||
+      payload?.selectedButtonId ||
+      payload?.selectedId ||
+      payload?.buttonText ||
+      payload?.selectedDisplayText ||
+      payload?.text;
+    if (typeof direct === "string" && direct.trim()) return direct.trim();
+    return deepFindMessageText(messageData);
   }
   if (typeMsg === "buttonsResponseMessage" && messageData.buttonsResponseMessage) {
     return (
       messageData.buttonsResponseMessage.selectedButtonId ||
       messageData.buttonsResponseMessage.selectedDisplayText ||
+      deepFindMessageText(messageData.buttonsResponseMessage) ||
       ""
     );
   }
-  if (typeMsg === "templateButtonReplyMessage" && messageData.templateButtonReplyMessage) {
+  if (typeMsg === "templateButtonReplyMessage" || typeMsg === "templateButtonsReplyMessage") {
+    const tpl = messageData.templateButtonReplyMessage || messageData.templateButtonsReplyMessage || {};
     return (
-      messageData.templateButtonReplyMessage.selectedId ||
-      messageData.templateButtonReplyMessage.selectedDisplayText ||
+      tpl.selectedId ||
+      tpl.selectedButtonId ||
+      tpl.selectedDisplayText ||
+      tpl.buttonText ||
+      deepFindMessageText(tpl) ||
+      ""
+    );
+  }
+  if (typeMsg === "listResponseMessage" && messageData.listResponseMessage) {
+    return (
+      messageData.listResponseMessage.singleSelectReply?.selectedRowId ||
+      messageData.listResponseMessage.title ||
+      messageData.listResponseMessage.description ||
       ""
     );
   }
@@ -386,7 +456,7 @@ function extractGreenApiMessageText(messageData: any, rawSender: string): string
   if (typeof messageData.textMessage === "string") {
     return messageData.textMessage;
   }
-  return "";
+  return deepFindMessageText(messageData);
 }
 
 // Global Poller & Processor for Green-API incoming queue (bypasses webhook delivery blocks)
@@ -417,7 +487,7 @@ async function fetchAndProcessSingleNotification(): Promise<boolean> {
       const senderData = body.senderData || {};
       const messageData = body.messageData || {};
 
-      const rawSender = senderData.sender || senderData.chatId || "";
+      const rawSender = resolveGreenApiSender(senderData);
       const isGroupOrStatus = rawSender.endsWith("@g.us") || rawSender === "status@broadcast";
       const senderPhone = rawSender.replace(/@.*$/, "");
       const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Cliente WhatsApp";
@@ -500,7 +570,7 @@ async function fetchAndProcessSalesNotification(): Promise<boolean> {
       const senderData = body.senderData || {};
       const messageData = body.messageData || {};
 
-      const rawSender = senderData.sender || senderData.chatId || "";
+      const rawSender = resolveGreenApiSender(senderData);
       const isGroupOrStatus = rawSender.endsWith("@g.us") || rawSender === "status@broadcast";
       const senderPhone = rawSender.replace(/@.*$/, "");
       const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Prospecto WhatsApp";
@@ -812,7 +882,8 @@ function detectDigitalMykServiceIntent(lowerText: string): string {
     lowerText.includes("sitio") ||
     lowerText.includes("landing") ||
     lowerText.includes("seo") ||
-    lowerText.includes("vercel")
+    lowerText.includes("digitalmyklab") ||
+    lowerText.includes("render")
   ) {
     return "Web Profesional PRO";
   }
@@ -839,19 +910,19 @@ function detectSalesButtonAction(cleanText: string): string | null {
   if (lower === "btn_advisor" || lower.includes("asesor directo") || lower.includes("hablar con maycol") || lower.includes("consultar asesor") || lower.includes("coordinar inicio") || lower.includes("humano")) {
     return "btn_advisor";
   }
-  if (lower === "btn_services" || lower.includes("ver servicios") || lower.includes("todos servicios") || lower === "portafolio") {
+  if (lower === "btn_services" || lower.includes("ver servicios") || lower.includes("todos servicios") || lower.includes("portafolio")) {
     return "btn_services";
   }
   if (lower === "btn_combo" || lower === "4" || lower.includes("ia + web gratis") || lower.includes("ver plan ia + web") || lower.includes("oferta ia + web")) {
     return "btn_combo";
   }
-  if (lower === "btn_chatbot" || lower === "1" || lower === "🤖 chatbots ia 24/7") {
+  if (lower === "btn_chatbot" || lower === "1" || lower.includes("chatbots ia 24/7")) {
     return "btn_chatbot";
   }
-  if (lower === "btn_app" || lower === "2" || lower === "📱 app a la medida") {
+  if (lower === "btn_app" || lower === "2" || lower.includes("app a la medida")) {
     return "btn_app";
   }
-  if (lower === "btn_web" || lower === "3" || lower === "🌐 web profesional pro") {
+  if (lower === "btn_web" || lower === "3" || lower.includes("web profesional pro")) {
     return "btn_web";
   }
   return null;
@@ -901,7 +972,7 @@ function buildProButtonResponse(action: string | null, cleanText: string, sender
 
   if (action === "btn_advisor") {
     return {
-      reply: `Perfecto${greetingName} ✅ Tu requerimiento ha sido asignado directamente a *Maycol Castañeda — Dirección de Proyectos en Digital MYK Lab*.\n\nEn breve nos pondremos en contacto contigo por esta línea para brindarte asesoría ejecutiva y cerrar los detalles técnicos de tu implementación.\n\n🌐 Web Corporativa: https://digitalmyklab.vercel.app/\n✉️ Correo: compumasster@gmail.com`,
+      reply: `Perfecto${greetingName} ✅ Tu requerimiento ha sido asignado directamente a *Maycol Castañeda — Dirección de Proyectos en Digital MYK Lab*.\n\nEn breve nos pondremos en contacto contigo por esta línea para brindarte asesoría ejecutiva y cerrar los detalles técnicos de tu implementación.\n\n🌐 Web Corporativa: https://digitalmyklab.onrender.com/\n✉️ Correo: compumasster@gmail.com`,
       buttons: [
         { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
         { buttonId: "btn_combo", buttonText: "🎁 Oferta IA + Web" },
@@ -961,7 +1032,7 @@ function buildProButtonResponse(action: string | null, cleanText: string, sender
 
   if (action === "btn_web" || detectedService === "Web Profesional PRO") {
     return {
-      reply: `🌐 *Páginas Web Profesionales de Alto Rendimiento — Digital MYK Lab*\n\nDiseñamos sitios corporativos orientados a conversión y posicionamiento en buscadores:\n\n✅ *Velocidad Ultrarrápida:* Código moderno alojado en infraestructura cloud de alto rendimiento.\n✅ *Máxima Seguridad:* Certificado SSL incluido 🔒.\n✅ *SEO Estratégico:* Optimización técnica para destacar en Google 📈.\n✅ *Conversión Directa:* Botones conectados directamente a tu WhatsApp.\n\n🔗 Portafolio oficial: https://digitalmyklab.vercel.app/\n\nSelecciona una opción:`,
+      reply: `🌐 *Páginas Web Profesionales de Alto Rendimiento — Digital MYK Lab*\n\nDiseñamos sitios corporativos orientados a conversión y posicionamiento en buscadores:\n\n✅ *Velocidad Ultrarrápida:* Código moderno alojado en infraestructura cloud de alto rendimiento.\n✅ *Máxima Seguridad:* Certificado SSL incluido 🔒.\n✅ *SEO Estratégico:* Optimización técnica para destacar en Google 📈.\n✅ *Conversión Directa:* Botones conectados directamente a tu WhatsApp.\n\n🔗 Web oficial: https://digitalmyklab.onrender.com/\n\nSelecciona una opción:`,
       buttons: [
         { buttonId: "btn_combo", buttonText: "🎁 Ver Plan IA + Web" },
         { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
@@ -1016,7 +1087,7 @@ async function dispatchSalesInteractiveMessage(
         })
       });
       const btnJson: any = await btnRes.json().catch(() => ({}));
-      if (btnRes.ok && !btnJson?.error) {
+      if (btnRes.ok && btnJson?.idMessage && !btnJson?.error) {
         return { status: "sent_success", data: btnJson, mode: 'buttons' };
       }
       console.warn("[Green-API Interactive Buttons fallback triggered]:", btnRes.status, btnJson);
@@ -1100,12 +1171,12 @@ async function processDigitalMykSalesMessage(phone: string, senderName: string, 
       .join("\n");
 
     const salesPrompt = `Eres el Asesor Comercial Ejecutivo de "Digital MYK Lab" (Slogan: "Seguridad y Garantía | Innova. Automatiza. Convierte.").
-Canal oficial WhatsApp: +51 929 327 654 | Web: https://digitalmyklab.vercel.app/ | Correo: compumasster@gmail.com
+Canal oficial WhatsApp: +51 929 327 654 | Web Oficial: https://digitalmyklab.onrender.com/ | Correo: compumasster@gmail.com
 
 PORTAFOLIO OFICIAL (TONO 100% SERIO Y CORPORATIVO — NUNCA USES LA PALABRA "DEMO"):
 1. Chatbots & Automatización IA 24/7: Atención en < 1 minuto, calificación de leads, agendamiento automático y sincronización con CRM / Google Sheets.
 2. Aplicaciones Móviles y Web a la Medida: Panel de ventas, catálogo, pedidos, clientes y reportes en tiempo real. Seguras, rápidas y escalables.
-3. Páginas Web Profesionales PRO: Infraestructura de alto rendimiento (Vercel + GitHub), SSL incluido, SEO para Google y enlace directo a WhatsApp.
+3. Páginas Web Profesionales PRO: Infraestructura cloud de alto rendimiento, SSL incluido, SEO para Google y enlace directo a WhatsApp.
 4. Plan Integral: Asistente IA 24/7 + Sitio Web Profesional GRATIS (consultar dominio/hosting externos), 99.9% Uptime y soporte 24/7/365.
 
 CUENTAS OFICIALES PARA DEPÓSITOS (Titular: Maycol Castañeda):
@@ -1208,7 +1279,7 @@ Mensaje actual del cliente (${session.name} - ${formattedPhone}):
         chatId,
         "Digital MYK Lab • Atención Comercial",
         botReply,
-        "Seguridad y Garantía • digitalmyklab.vercel.app",
+        "Seguridad y Garantía • digitalmyklab.onrender.com",
         replyButtons
       );
       greenApiSendStatus = dispatch.status;
@@ -2021,7 +2092,7 @@ app.post("/api/green-api/sales/webhook", async (req, res) => {
     if (isIncomingSalesMsg) {
       const senderData = body.senderData || {};
       const messageData = body.messageData || {};
-      const rawSender = senderData.sender || senderData.chatId || "";
+      const rawSender = resolveGreenApiSender(senderData);
       const isGroupOrStatus = rawSender.endsWith("@g.us") || rawSender === "status@broadcast";
       const senderPhone = rawSender.replace(/@.*$/, "");
       const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Prospecto WhatsApp";
@@ -2304,7 +2375,7 @@ app.post(["/api/green-api/webhook", "/api/webhooks/green-api"], async (req, res)
       const senderData = body.senderData || {};
       const messageData = body.messageData || {};
 
-      const rawSender = senderData.sender || senderData.chatId || "";
+      const rawSender = resolveGreenApiSender(senderData);
       const isGroupOrStatus = rawSender.endsWith("@g.us") || rawSender === "status@broadcast";
       const senderPhone = rawSender.replace(/@.*$/, "");
       const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Cliente WhatsApp";

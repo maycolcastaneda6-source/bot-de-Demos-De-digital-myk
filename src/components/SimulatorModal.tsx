@@ -202,7 +202,7 @@ export const SimulatorModal: React.FC<SimulatorModalProps> = ({
                 Consultas Rápidas de Clientes:
               </label>
               <div className="grid grid-cols-1 gap-2">
-                {leadScenarios.map((sc) => (
+                {leadScenarios.filter(sc => (sc.targetLine || 'demos') === targetLine).map((sc) => (
                   <button
                     key={sc.id}
                     onClick={() => handleApplyScenario(sc)}
