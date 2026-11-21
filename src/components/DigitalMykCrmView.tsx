@@ -699,7 +699,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
     setTimeout(() => setCopiedAccountKey(null), 1800);
   };
 
-  const fullPaymentTemplate = `Cuentas Oficiales Digital MYK Lab\nTitular: Maycol Castañeda\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Ahorro Soles: Cta 8330613655 | CCI 00972420833061365561`;
+  const fullPaymentTemplate = `Cuentas Oficiales Digital MYK Lab\nTitular: Maycol Castañeda\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Ahorro Soles: Cta 8330613655 | CCI 00972420833061365561\n\nModalidad de Pago:\n• Desarrollo de Software (Chatbots IA, Webs y Apps): 50% de adelanto para iniciar y 50% contra entrega.\n• Impulso Redes Sociales: Pago 100% adelantado para activación inmediata.`;
 
   const currentSocialPlatform = SOCIAL_CATALOG.find(p => p.key === activeSocialPlatform) || SOCIAL_CATALOG[0];
   const comboTotal = comboCart.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -737,7 +737,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
     const lines = comboCart.map(
       item => `• ${item.platform} — ${item.category}: ${item.label}${item.qty > 1 ? ` x${item.qty}` : ''} = S/ ${item.price * item.qty}`
     );
-    return `🚀 *Cotización Crecimiento Redes Sociales — Digital MYK Lab*\n\n${lines.join('\n')}\n\n💰 *Total del Pack:* S/ ${comboTotal}\n📲 Envíanos el enlace (link) de tu perfil o publicación para iniciar.\n\n🟣 *Yape:* 929327654 | 🔵 *Plin:* 921034349 (Maycol Castañeda)`;
+    return `🚀 *Cotización Crecimiento Redes Sociales — Digital MYK Lab*\n\n${lines.join('\n')}\n\n💰 *Total del Pack:* S/ ${comboTotal}\n💳 *Modalidad:* Pago 100% adelantado para activar el pedido al instante.\n📲 Envíanos el enlace (link) de tu perfil o publicación para iniciar.\n\n🟣 *Yape:* 929327654 | 🔵 *Plin:* 921034349 (Maycol Castañeda)`;
   };
 
   const handleCopyComboQuote = () => {
@@ -1161,7 +1161,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
 
                 {comboTotal >= 10 && (
                   <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-300 font-semibold">
-                    ✅ Pack listo para activar por WhatsApp y cobrar con Yape/Plin.
+                    ✅ Pack listo para activar (Redes Sociales: pago 100% adelantado por Yape/Plin).
                   </div>
                 )}
 
@@ -1272,6 +1272,17 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
               <p className="font-mono text-[11px] font-bold text-white">Cta: 8330613655</p>
               <p className="font-mono text-[11px] text-slate-300">CCI: 00972420833061365561</p>
               <p className="text-[10px] text-slate-400">Titular: Maycol Castañeda</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+            <div className="p-3 rounded-xl bg-cyan-950/35 border border-cyan-500/30 text-cyan-100">
+              <strong className="text-cyan-300">💻 Desarrollo de Software (Chatbots IA, Webs PRO y Apps):</strong>{' '}
+              Se trabaja con el <strong>50% de adelanto</strong> del precio del servicio para iniciar el proyecto y <strong>50% contra entrega</strong>.
+            </div>
+            <div className="p-3 rounded-xl bg-pink-950/30 border border-pink-500/30 text-pink-100">
+              <strong className="text-pink-300">📈 Impulso en Redes Sociales (TikTok, IG, FB, YouTube):</strong>{' '}
+              Para campañas de redes sociales el <strong>pago es 100% adelantado</strong> para activar el pedido al instante.
             </div>
           </div>
         </div>
@@ -2087,7 +2098,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
           </div>
           <h4 className="text-xs font-extrabold text-white">Chatbots IA 24/7</h4>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            Atención inmediata con botones y números en WhatsApp, leads calificados, agenda automática y lectura de comprobantes (Plan Emprendedor S/ 350 • Empresarial S/ 550).
+            Atención inmediata con botones y números en WhatsApp, leads calificados, agenda automática y lectura de comprobantes (Plan Emprendedor S/ 350 • Empresarial S/ 550). <span className="text-cyan-300 font-semibold">Inicia con 50% adelanto.</span>
           </p>
         </div>
 
@@ -2098,7 +2109,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
           </div>
           <h4 className="text-xs font-extrabold text-white">Apps a la Medida</h4>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            Panel de ventas del día, productos, pedidos, clientes, reportes y alertas en infraestructura cloud de alto rendimiento (PRO S/ 750 • Empresarial S/ 1,250).
+            Panel de ventas del día, productos, pedidos, clientes, reportes y alertas en infraestructura cloud de alto rendimiento (PRO S/ 750 • Empresarial S/ 1,250). <span className="text-purple-300 font-semibold">Inicia con 50% adelanto.</span>
           </p>
         </div>
 
@@ -2109,7 +2120,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
           </div>
           <h4 className="text-xs font-extrabold text-white">Webs Profesionales PRO</h4>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            Ultrarrápidas en servidores cloud, Certificado SSL 100%, SEO para Google y enlace WhatsApp (Landing S/ 290 • Corporativa S/ 450).
+            Ultrarrápidas en servidores cloud, Certificado SSL 100%, SEO para Google y enlace WhatsApp (Landing S/ 290 • Corporativa S/ 450). <span className="text-indigo-300 font-semibold">Inicia con 50% adelanto.</span>
           </p>
         </div>
 
@@ -2121,7 +2132,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
             </div>
             <h4 className="text-xs font-extrabold text-pink-200">Redes Sociales (S/ 10+)</h4>
             <p className="text-[11px] text-slate-300 leading-relaxed">
-              Seguidores, Likes, Vistas, Comentarios y En Vivo para TikTok, Instagram, Facebook y YouTube con combos desde S/ 10.
+              Seguidores, Likes, Vistas, Comentarios y En Vivo para TikTok, Instagram, Facebook y YouTube con combos desde S/ 10. <span className="text-pink-300 font-semibold">Pago 100% adelantado.</span>
             </p>
           </div>
           <button
@@ -2140,7 +2151,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
           </div>
           <h4 className="text-xs font-extrabold text-amber-200">Asistente IA + Web GRATIS</h4>
           <p className="text-[11px] text-slate-300 leading-relaxed">
-            Al implementar tu Asistente IA 24/7 (S/ 390) incluimos tu Sitio Web Profesional en servidores cloud sin costo adicional, 99.9% Uptime y soporte continuo.
+            Al implementar tu Asistente IA 24/7 (S/ 390) incluimos tu Sitio Web Profesional en servidores cloud sin costo adicional, 99.9% Uptime y soporte continuo. <span className="text-amber-300 font-semibold">Inicia con 50% adelanto.</span>
           </p>
         </div>
       </div>
@@ -2365,7 +2376,15 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
 
                 <div className="flex flex-wrap gap-2 pt-1">
                   <a
-                    href={`https://wa.me/${activeSelectedLead.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hola ${activeSelectedLead.clientName}, te saluda Maycol Castañeda de Digital MYK Lab. Te comparto nuestras cuentas oficiales para iniciar tu proyecto:\n\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Soles: Cta 8330613655 | CCI 00972420833061365561\nTitular: Maycol Castañeda`)}`}
+                    href={`https://wa.me/${activeSelectedLead.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                      (() => {
+                        const isSocialLead = /TikTok|Instagram|Facebook|YouTube|Redes Sociales/i.test(activeSelectedLead.serviceInterest || '');
+                        const modalidadLine = isSocialLead
+                          ? 'Modalidad Impulso Redes Sociales: Pago 100% adelantado para activar tu pedido al instante.'
+                          : `Modalidad Desarrollo de Software: Trabajamos con el 50% de adelanto (S/ ${Math.round((Number(activeSelectedLead.estimatedValue) || 0) / 2)}) para iniciar y 50% contra entrega.`;
+                        return `Hola ${activeSelectedLead.clientName}, te saluda Maycol Castañeda de Digital MYK Lab. Te comparto nuestras cuentas oficiales para iniciar (${activeSelectedLead.serviceInterest}):\n\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Soles: Cta 8330613655 | CCI 00972420833061365561\nTitular: Maycol Castañeda\n\n📌 ${modalidadLine}`;
+                      })()
+                    )}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-center flex items-center justify-center gap-1.5"

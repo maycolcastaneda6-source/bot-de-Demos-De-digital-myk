@@ -1062,7 +1062,11 @@ const DIGITAL_MYK_PAYMENT_DETAILS = `👤 *Titular:* Maycol Castañeda
 
 🔴 *Scotiabank (Cuenta Ahorro Soles)*
 • N° Cuenta: 8330613655
-• CCI: 00972420833061365561`;
+• CCI: 00972420833061365561
+
+📌 *Modalidad de Pago:*
+• *Desarrollo de Software (Chatbots IA, Webs y Apps):* Se trabaja con el *50% de adelanto* del precio del servicio para iniciar y *50% contra entrega*.
+• *Impulso en Redes Sociales (desde S/ 10):* *Pago 100% adelantado* para activar tu pedido al instante.`;
 
 const DIGITAL_MYK_SOCIAL_CATALOG = `CATALOGO OFICIAL CRECIMIENTO REDES SOCIALES (Pedidos desde S/ 10 por transaccion; los tramos economicos de S/ 5 o S/ 6 se combinan entre si en el mismo enlace o distintos para alcanzar el minimo de S/ 10):
 
@@ -1404,7 +1408,7 @@ function buildProButtonResponse(
       { buttonId: "btn_combo", buttonText: "🎁 IA + Web (S/ 390)" }
     ];
     return {
-      reply: `🤖 *Soluciones Tecnológicas — Digital MYK Lab*\n_Infraestructura cloud rápida, segura y escalable con Certificado SSL incluido:_\n\n1️⃣ *Chatbot IA 24/7* _(WhatsApp + Menú Interactivo + CRM)_ — desde *S/ 350*\n2️⃣ *Web Profesional PRO* _(Ultrarrápida + SSL + SEO Google)_ — desde *S/ 290*\n3️⃣ *App a la Medida* _(Ventas, Pedidos, Clientes y Reportes)_ — desde *S/ 750*\n4️⃣ *Oferta Estrella:* Asistente IA 24/7 + Sitio Web GRATIS — *S/ 390*\n\n👇 *Responde con el número (1, 2, 3 o 4) para ver el detalle:*`,
+      reply: `🤖 *Soluciones Tecnológicas — Digital MYK Lab*\n_Infraestructura cloud rápida, segura y escalable con Certificado SSL incluido:_\n\n1️⃣ *Chatbot IA 24/7* _(WhatsApp + Menú Interactivo + CRM)_ — desde *S/ 350*\n2️⃣ *Web Profesional PRO* _(Ultrarrápida + SSL + SEO Google)_ — desde *S/ 290*\n3️⃣ *App a la Medida* _(Ventas, Pedidos, Clientes y Reportes)_ — desde *S/ 750*\n4️⃣ *Oferta Estrella:* Asistente IA 24/7 + Sitio Web GRATIS — *S/ 390*\n\n💳 _Modalidad Software: Se trabaja con el *50% de adelanto* para iniciar y *50% contra entrega*._\n\n👇 *Responde con el número (1, 2, 3 o 4) para ver el detalle:*`,
       buttons: [
         { buttonId: "btn_chatbot", buttonText: "🤖 Chatbots IA 24/7" },
         { buttonId: "btn_web", buttonText: "🌐 Web Profesional PRO" },
@@ -1417,7 +1421,7 @@ function buildProButtonResponse(
 
   if (action === "btn_social") {
     return {
-      reply: `📈 *Crecimiento en Redes Sociales — Desde S/ 10* 🚀\n\nImpulsa tus cuentas con entrega progresiva y paquetes desde *S/ 10* por pedido _(puedes combinar likes + vistas en el mismo link o distintos)_.\n\n1️⃣ *TikTok* _(Seguidores, En Vivo, Likes, Vistas, Comentarios — desde S/ 10)_\n2️⃣ *Instagram* _(Seguidores, En Vivo, Likes, Vistas, Comentarios — desde S/ 10)_\n3️⃣ *Facebook y YouTube* _(Seguidores, Suscriptores, Vistas, Likes — desde S/ 10)_\n\n👇 *Responde con el número (1, 2 o 3) o escribe el nombre de la red:*`,
+      reply: `📈 *Crecimiento en Redes Sociales — Desde S/ 10* 🚀\n\nImpulsa tus cuentas con entrega progresiva y paquetes desde *S/ 10* por pedido _(puedes combinar likes + vistas en el mismo link o distintos)_.\n💳 _Modalidad Redes Sociales: Pago 100% adelantado para activar tu pedido al instante._\n\n1️⃣ *TikTok* _(Seguidores, En Vivo, Likes, Vistas, Comentarios — desde S/ 10)_\n2️⃣ *Instagram* _(Seguidores, En Vivo, Likes, Vistas, Comentarios — desde S/ 10)_\n3️⃣ *Facebook y YouTube* _(Seguidores, Suscriptores, Vistas, Likes — desde S/ 10)_\n\n👇 *Responde con el número (1, 2 o 3) o escribe el nombre de la red:*`,
       buttons: [
         { buttonId: "btn_tiktok", buttonText: "🎵 TikTok (desde S/10)" },
         { buttonId: "btn_instagram", buttonText: "📸 Instagram (S/10+)" },
@@ -1429,7 +1433,7 @@ function buildProButtonResponse(
 
   if (action === "btn_fb_yt") {
     return {
-      reply: `📘 *Facebook* & 🔴 *YouTube* — Catálogo desde *S/ 10*\n\n👇 *Responde con el número (1, 2 o 3):*\n1️⃣ Catálogo *Facebook* (desde S/ 10)\n2️⃣ Catálogo *YouTube* (desde S/ 10)\n3️⃣ *Armar Pack / Combo S/ 10+*`,
+      reply: `📘 *Facebook* & 🔴 *YouTube* — Catálogo desde *S/ 10*\n💳 _Modalidad Redes Sociales: Pago 100% adelantado._\n\n👇 *Responde con el número (1, 2 o 3):*\n1️⃣ Catálogo *Facebook* (desde S/ 10)\n2️⃣ Catálogo *YouTube* (desde S/ 10)\n3️⃣ *Armar Pack / Combo S/ 10+*`,
       buttons: [
         { buttonId: "btn_facebook", buttonText: "📘 Facebook (S/10+)" },
         { buttonId: "btn_youtube", buttonText: "🔴 YouTube (S/10+)" },
@@ -1441,7 +1445,7 @@ function buildProButtonResponse(
 
   if (action === "btn_tiktok") {
     return {
-      reply: `📱 *1. TikTok — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:* 500 (*S/ 12*) | 1K (*S/ 22*) | 3K (*S/ 60*) | 5K (*S/ 95*)\n📺 *Espectadores En Vivo:* 30m (*S/ 35*) | 1h (*S/ 65*) | 1h30m (*S/ 95*)\n❤️ *Likes* _(combinables)_: 1K (*S/ 10*) | 3K (*S/ 22*) | 5K (*S/ 35*) | _500 a S/ 6_\n👁️ *Vistas* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 18*) | 10K (*S/ 32*) | _1K a S/ 6_\n💬 *Comentarios:* 100 (*S/ 10*) | 300 (*S/ 22*) | 500 (*S/ 35*) | 1K (*S/ 65*)\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
+      reply: `📱 *1. TikTok — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:* 500 (*S/ 12*) | 1K (*S/ 22*) | 3K (*S/ 60*) | 5K (*S/ 95*)\n📺 *Espectadores En Vivo:* 30m (*S/ 35*) | 1h (*S/ 65*) | 1h30m (*S/ 95*)\n❤️ *Likes* _(combinables)_: 1K (*S/ 10*) | 3K (*S/ 22*) | 5K (*S/ 35*) | _500 a S/ 6_\n👁️ *Vistas* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 18*) | 10K (*S/ 32*) | _1K a S/ 6_\n💬 *Comentarios:* 100 (*S/ 10*) | 300 (*S/ 22*) | 500 (*S/ 35*) | 1K (*S/ 65*)\n\n💳 _Modalidad Redes Sociales: Pago 100% adelantado para activar tu pedido._\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
       buttons: [
         { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
         { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
@@ -1453,7 +1457,7 @@ function buildProButtonResponse(
 
   if (action === "btn_instagram") {
     return {
-      reply: `📸 *2. Instagram — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:* 500 (*S/ 12*) | 1K (*S/ 22*) | 3K (*S/ 60*) | 5K (*S/ 95*)\n📺 *En Vivo:* 500 (*S/ 10*) | 1K (*S/ 16*) | 3K (*S/ 40*) | 5K (*S/ 65*)\n❤️ *Likes* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 22*) | 10K (*S/ 40*) | _1K a S/ 6_\n👁️ *Vistas* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 18*) | 10K (*S/ 32*) | _1K a S/ 6_\n💬 *Comentarios:* 500 (*S/ 18*) | 1K (*S/ 30*) | 3K (*S/ 80*)\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
+      reply: `📸 *2. Instagram — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:* 500 (*S/ 12*) | 1K (*S/ 22*) | 3K (*S/ 60*) | 5K (*S/ 95*)\n📺 *En Vivo:* 500 (*S/ 10*) | 1K (*S/ 16*) | 3K (*S/ 40*) | 5K (*S/ 65*)\n❤️ *Likes* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 22*) | 10K (*S/ 40*) | _1K a S/ 6_\n👁️ *Vistas* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 18*) | 10K (*S/ 32*) | _1K a S/ 6_\n💬 *Comentarios:* 500 (*S/ 18*) | 1K (*S/ 30*) | 3K (*S/ 80*)\n\n💳 _Modalidad Redes Sociales: Pago 100% adelantado para activar tu pedido._\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
       buttons: [
         { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
         { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
@@ -1465,7 +1469,7 @@ function buildProButtonResponse(
 
   if (action === "btn_facebook") {
     return {
-      reply: `📘 *3. Facebook — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:* 500 (*S/ 12*) | 1K (*S/ 22*) | 3K (*S/ 60*) | 5K (*S/ 95*)\n📺 *Transmisión En Vivo:* 60 min (*S/ 45*) | 10 horas (*S/ 95*)\n👍 *Likes* _(combinables)_: 1K (*S/ 10*) | 3K (*S/ 25*) | 5K (*S/ 40*) | _500 a S/ 6_\n👁️ *Vistas* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 18*) | 10K (*S/ 32*) | _1K a S/ 6_\n💬 *Comentarios:* 100 (*S/ 10*) | 300 (*S/ 22*) | 500 (*S/ 35*)\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
+      reply: `📘 *3. Facebook — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:* 500 (*S/ 12*) | 1K (*S/ 22*) | 3K (*S/ 60*) | 5K (*S/ 95*)\n📺 *Transmisión En Vivo:* 60 min (*S/ 45*) | 10 horas (*S/ 95*)\n👍 *Likes* _(combinables)_: 1K (*S/ 10*) | 3K (*S/ 25*) | 5K (*S/ 40*) | _500 a S/ 6_\n👁️ *Vistas* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 18*) | 10K (*S/ 32*) | _1K a S/ 6_\n💬 *Comentarios:* 100 (*S/ 10*) | 300 (*S/ 22*) | 500 (*S/ 35*)\n\n💳 _Modalidad Redes Sociales: Pago 100% adelantado para activar tu pedido._\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
       buttons: [
         { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
         { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
@@ -1477,7 +1481,7 @@ function buildProButtonResponse(
 
   if (action === "btn_youtube") {
     return {
-      reply: `🔴 *4. YouTube — Catálogo Oficial (desde S/ 10)*\n\n🔔 *Suscriptores:* 100 (*S/ 10*) | 500 (*S/ 35*) | 1K (*S/ 65*)\n💬 *Comentarios:* 100 (*S/ 10*) | 500 (*S/ 25*) | 1K (*S/ 45*)\n👍 *Likes* _(combinables)_: 300 (*S/ 10*) | 500 (*S/ 14*) | 1K (*S/ 25*) | _100 a S/ 5_\n📺 *En Vivo:* 1K (*S/ 12*) | 5K (*S/ 40*) | 10K (*S/ 85*)\n👁️ *Vistas* _(combinables)_: 300 (*S/ 10*) | 500 (*S/ 14*) | 1K (*S/ 22*) | _100 a S/ 5_\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
+      reply: `🔴 *4. YouTube — Catálogo Oficial (desde S/ 10)*\n\n🔔 *Suscriptores:* 100 (*S/ 10*) | 500 (*S/ 35*) | 1K (*S/ 65*)\n💬 *Comentarios:* 100 (*S/ 10*) | 500 (*S/ 25*) | 1K (*S/ 45*)\n👍 *Likes* _(combinables)_: 300 (*S/ 10*) | 500 (*S/ 14*) | 1K (*S/ 25*) | _100 a S/ 5_\n📺 *En Vivo:* 1K (*S/ 12*) | 5K (*S/ 40*) | 10K (*S/ 85*)\n👁️ *Vistas* _(combinables)_: 300 (*S/ 10*) | 500 (*S/ 14*) | 1K (*S/ 22*) | _100 a S/ 5_\n\n💳 _Modalidad Redes Sociales: Pago 100% adelantado para activar tu pedido._\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
       buttons: [
         { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
         { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
@@ -1489,7 +1493,7 @@ function buildProButtonResponse(
 
   if (action === "btn_social_combo") {
     return {
-      reply: `🔥 *Armar Pack Inicio en Redes (desde S/ 10)*\n\nCombina dos o más servicios en el mismo enlace o distintos desde *S/ 10*:\n\n• *YouTube Pack S/ 10:* 100 Likes (S/ 5) + 100 Vistas (S/ 5) = *S/ 10*\n• *TikTok / IG / FB Mix S/ 12:* 500 Likes (S/ 6) + 1K Vistas (S/ 6) = *S/ 12*\n• *Paquete Directo:* cualquier servicio desde *S/ 10*.\n\n📲 Escríbenos el *paquete que deseas + el link* o responde con el número:\n1️⃣ Ver Yape / Cuentas para Pagar\n2️⃣ Enviar Mi Link al Asesor\n3️⃣ Volver al Catálogo de Redes`,
+      reply: `🔥 *Armar Pack Inicio en Redes (desde S/ 10)*\n\nCombina dos o más servicios en el mismo enlace o distintos desde *S/ 10*:\n\n• *YouTube Pack S/ 10:* 100 Likes (S/ 5) + 100 Vistas (S/ 5) = *S/ 10*\n• *TikTok / IG / FB Mix S/ 12:* 500 Likes (S/ 6) + 1K Vistas (S/ 6) = *S/ 12*\n• *Paquete Directo:* cualquier servicio desde *S/ 10*.\n\n💳 _Modalidad Redes Sociales: Pago 100% adelantado para activar tu pedido._\n\n📲 Escríbenos el *paquete que deseas + el link* o responde con el número:\n1️⃣ Ver Yape / Cuentas para Pagar\n2️⃣ Enviar Mi Link al Asesor\n3️⃣ Volver al Catálogo de Redes`,
       buttons: [
         { buttonId: "btn_pay", buttonText: "💳 Ver Yape / Cuentas" },
         { buttonId: "btn_advisor", buttonText: "👨‍💻 Enviar Mi Link" },
@@ -1501,7 +1505,7 @@ function buildProButtonResponse(
 
   if (action === "btn_combo" || detectedService === "Combo Asistente IA + Web Gratis") {
     return {
-      reply: `🎁 *Oferta Estrella: Asistente IA 24/7 + Sitio Web Profesional GRATIS*${greetingName}\n\nAl contratar tu *Asistente Virtual con IA 24/7* en *Digital MYK Lab*, te llevas tu *Sitio Web Profesional TOTALMENTE GRATIS* _(consultar condiciones para dominio/hosting externos)_:\n\n✅ *Asistente IA 24/7:* Respuesta en < 1 min, menú interactivo y registro en CRM\n✅ *Sitio Web PRO:* Servidores cloud ultrarrápidos, SSL incluido y SEO Google\n✅ *Respaldo Total:* Infraestructura 99.9% Uptime y soporte 24/7/365\n\n💰 *Precio Promocional Todo Incluido:* *S/ 390* _(pago único de implementación)_\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Contratar / Ver Cuentas de Pago\n2️⃣ Hablar con Asesor Directo\n3️⃣ Ver Todos los Servicios`,
+      reply: `🎁 *Oferta Estrella: Asistente IA 24/7 + Sitio Web Profesional GRATIS*${greetingName}\n\nAl contratar tu *Asistente Virtual con IA 24/7* en *Digital MYK Lab*, te llevas tu *Sitio Web Profesional TOTALMENTE GRATIS* _(consultar condiciones para dominio/hosting externos)_:\n\n✅ *Asistente IA 24/7:* Respuesta en < 1 min, menú interactivo y registro en CRM\n✅ *Sitio Web PRO:* Servidores cloud ultrarrápidos, SSL incluido y SEO Google\n✅ *Respaldo Total:* Infraestructura 99.9% Uptime y soporte 24/7/365\n\n💰 *Precio Promocional Todo Incluido:* *S/ 390*\n💳 _Modalidad Software: Se trabaja con el *50% de adelanto* (S/ 195) para iniciar y *50% contra entrega*._\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Contratar / Ver Cuentas de Pago\n2️⃣ Hablar con Asesor Directo\n3️⃣ Ver Todos los Servicios`,
       buttons: [
         { buttonId: "btn_pay", buttonText: "💳 Cuentas / Yape" },
         { buttonId: "btn_advisor", buttonText: "👨‍💻 Asesor Directo" },
@@ -1513,7 +1517,7 @@ function buildProButtonResponse(
 
   if (action === "btn_chatbot" || detectedService === "Chatbot IA 24/7") {
     return {
-      reply: `🤖 *Chatbots & Automatización IA 24/7 — Digital MYK Lab*\n\nAutomatiza tu WhatsApp para atender y vender 24/7:\n\n✅ *Atención Inmediata (< 1 min):* Menús interactivos guiados por número\n✅ *Calificación & CRM Automático:* Registra clientes, servicio y etapa en tiempo real\n✅ *Agendamiento & Pagos:* Reconoce comprobantes (Yape, Plin, bancos) y coordina el cierre\n✅ *Servidor Cloud Activo 24/7* sin límites de chats\n\n💰 *Planes Accesibles (Pago único):*\n• *Plan Emprendedor IA 24/7:* *S/ 350*\n• *Plan Empresarial IA + CRM PRO:* *S/ 550*\n🎁 _Tip:_ Por *S/ 390* incluye también tu *Web Profesional GRATIS*.\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Iniciar / Ver Medios de Pago\n2️⃣ Ver Oferta IA + Web (S/ 390)\n3️⃣ Consultar con Asesor Directo`,
+      reply: `🤖 *Chatbots & Automatización IA 24/7 — Digital MYK Lab*\n\nAutomatiza tu WhatsApp para atender y vender 24/7:\n\n✅ *Atención Inmediata (< 1 min):* Menús interactivos guiados por número\n✅ *Calificación & CRM Automático:* Registra clientes, servicio y etapa en tiempo real\n✅ *Agendamiento & Pagos:* Reconoce comprobantes (Yape, Plin, bancos) y coordina el cierre\n✅ *Servidor Cloud Activo 24/7* sin límites de chats\n\n💰 *Planes Accesibles:*\n• *Plan Emprendedor IA 24/7:* *S/ 350* _(inicia con 50%: S/ 175)_\n• *Plan Empresarial IA + CRM PRO:* *S/ 550* _(inicia con 50%: S/ 275)_\n💳 _Modalidad Software: Trabajamos con el *50% de adelanto* para iniciar y *50% contra entrega*._\n🎁 _Tip:_ Por *S/ 390* incluye también tu *Web Profesional GRATIS*.\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Iniciar / Ver Medios de Pago\n2️⃣ Ver Oferta IA + Web (S/ 390)\n3️⃣ Consultar con Asesor Directo`,
       buttons: [
         { buttonId: "btn_pay", buttonText: "💳 Cuentas / Yape" },
         { buttonId: "btn_combo", buttonText: "🎁 Oferta IA + Web" },
@@ -1525,7 +1529,7 @@ function buildProButtonResponse(
 
   if (action === "btn_app" || detectedService === "App a la Medida") {
     return {
-      reply: `📱 *Aplicaciones a la Medida — Digital MYK Lab*\n\nConstruimos la aplicación web o móvil que tu negocio necesita:\n\n✅ *Panel de Ventas y Reportes Diarios* en tiempo real\n✅ *Gestión de Productos, Pedidos, Catálogo, Inventario y Clientes*\n✅ *Arquitectura Cloud Segura, Rápida y Escalable*\n✅ *Asesoría Gratuita, Entrega Puntual y Soporte Continuo*\n\n💰 *Inversión Accesible:*\n• *App Gestión Comercial PRO:* *S/ 750*\n• *App Empresarial Multi-Usuario:* *S/ 1,250*\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Iniciar / Ver Medios de Pago\n2️⃣ Ver Otros Servicios\n3️⃣ Hablar con Asesor Directo`,
+      reply: `📱 *Aplicaciones a la Medida — Digital MYK Lab*\n\nConstruimos la aplicación web o móvil que tu negocio necesita:\n\n✅ *Panel de Ventas y Reportes Diarios* en tiempo real\n✅ *Gestión de Productos, Pedidos, Catálogo, Inventario y Clientes*\n✅ *Arquitectura Cloud Segura, Rápida y Escalable*\n✅ *Asesoría Gratuita, Entrega Puntual y Soporte Continuo*\n\n💰 *Inversión Accesible:*\n• *App Gestión Comercial PRO:* *S/ 750* _(inicia con 50%: S/ 375)_\n• *App Empresarial Multi-Usuario:* *S/ 1,250* _(inicia con 50%: S/ 625)_\n💳 _Modalidad Software: Trabajamos con el *50% de adelanto* para iniciar y *50% contra entrega*._\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Iniciar / Ver Medios de Pago\n2️⃣ Ver Otros Servicios\n3️⃣ Hablar con Asesor Directo`,
       buttons: [
         { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
         { buttonId: "btn_services", buttonText: "💼 Otros Servicios" },
@@ -1537,7 +1541,7 @@ function buildProButtonResponse(
 
   if (action === "btn_web" || detectedService === "Web Profesional PRO") {
     return {
-      reply: `🌐 *Web Profesional PRO — Digital MYK Lab*\n\nPáginas ultrarrápidas diseñadas para convertir visitas en clientes:\n\n✅ *Velocidad Cloud:* Servidores de alto rendimiento y carga en milisegundos\n✅ *Máxima Seguridad:* Certificado SSL (candado 🔒) 100% incluido\n✅ *SEO de Alto Impacto:* Optimizada para posicionar en Google 📈\n✅ *Conversión Directa:* Conectada a tu WhatsApp + catálogo\n\n💰 *Precios Accesibles (Pago único):*\n• *Landing Page PRO:* *S/ 290*\n• *Web Corporativa / Catálogo PRO:* *S/ 450*\n_(Consultar adicional por dominio propio .com/.pe o hosting dedicado externo)_\n\n🔗 Oficial: https://digitalmyklab.onrender.com/\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Ver Plan IA + Web GRATIS (S/ 390)\n2️⃣ Ver Cuentas / Pagar Ahora\n3️⃣ Hablar con Asesor Directo`,
+      reply: `🌐 *Web Profesional PRO — Digital MYK Lab*\n\nPáginas ultrarrápidas diseñadas para convertir visitas en clientes:\n\n✅ *Velocidad Cloud:* Servidores de alto rendimiento y carga en milisegundos\n✅ *Máxima Seguridad:* Certificado SSL (candado 🔒) 100% incluido\n✅ *SEO de Alto Impacto:* Optimizada para posicionar en Google 📈\n✅ *Conversión Directa:* Conectada a tu WhatsApp + catálogo\n\n💰 *Precios Accesibles:*\n• *Landing Page PRO:* *S/ 290* _(inicia con 50%: S/ 145)_\n• *Web Corporativa / Catálogo PRO:* *S/ 450* _(inicia con 50%: S/ 225)_\n💳 _Modalidad Software: Trabajamos con el *50% de adelanto* para iniciar y *50% contra entrega*._\n_(Consultar adicional por dominio propio .com/.pe o hosting dedicado externo)_\n\n🔗 Oficial: https://digitalmyklab.onrender.com/\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Ver Plan IA + Web GRATIS (S/ 390)\n2️⃣ Ver Cuentas / Pagar Ahora\n3️⃣ Hablar con Asesor Directo`,
       buttons: [
         { buttonId: "btn_combo", buttonText: "🎁 Plan IA + Web S/390" },
         { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
@@ -1883,11 +1887,15 @@ CUENTAS OFICIALES PARA DEPÓSITOS (Titular: Maycol Castañeda):
 - Banco de la Nación: Cuenta 04765342509 | CCI 018-765-004765342509-81
 - Scotiabank (Cuenta Ahorro Soles): Cuenta 8330613655 | CCI 00972420833061365561
 
+MODALIDAD DE PAGO OBLIGATORIA AL COTIZAR O ENVIAR CUENTAS:
+- Desarrollo de Software (Chatbots IA, Webs PRO, Apps a la Medida, Oferta IA + Web Gratis): Se trabaja con el *50% de adelanto* del precio del servicio para iniciar el desarrollo y el *50% restante contra entrega*.
+- Impulso en Redes Sociales (TikTok, Instagram, Facebook, YouTube): Es *pago 100% adelantado* para activar el pedido de inmediato (NO aplica 50%).
+
 REGLAS ESTRICTAS:
-1. Tono ejecutivo, serio, cercano y ordenado. Guía paso a paso (servicio -> precio claro -> cuenta de pago -> activación).
+1. Tono ejecutivo, serio, cercano y ordenado. Guía paso a paso (servicio -> precio claro + modalidad de pago -> cuenta de pago -> activación).
 2. ${isFirstMessage ? 'Es el primer mensaje del cliente: preséntate brevemente.' : 'Ya respondiste anteriormente en este chat: NO incluyas encabezado de bienvenida ni repitas "Hola, bienvenido a Digital MYK Lab"; ve directo al punto.'}
-3. Si preguntan precios de Chatbot, Web, App o IA+Web Gratis, da los precios exactos arriba indicados en Soles y resalta que incluye servidores cloud de alto rendimiento con Certificado SSL incluido (sin mencionar GitHub ni Render).
-4. Para Redes Sociales: enfatiza que desde S/ 10 pueden elegir paquete o armar un Pack Inicio combinando likes + vistas, y solicita el link del perfil o video.
+3. Si preguntan precios o cotizaciones de Chatbot, Web, App o IA+Web Gratis, da los precios exactos arriba indicados en Soles, aclara que se trabaja con el *50% de adelanto para iniciar y 50% contra entrega*, y resalta que incluye servidores cloud de alto rendimiento con Certificado SSL incluido (sin mencionar GitHub ni Render).
+4. Para Redes Sociales: enfatiza que desde S/ 10 pueden elegir paquete o armar un Pack Inicio combinando likes + vistas, indica siempre que es *pago 100% adelantado* para activarlo al instante, y solicita el link del perfil o video.
 5. Si indican que ya pagaron o mencionan Yape/Plin/BN/Scotiabank, confirma el método de pago detectado y pide su dato final para activar.
 6. Al final de tu respuesta, incluye SIEMPRE este bloque con las 3 opciones numeradas exactas para que responda con 1, 2 o 3:
    - Si trató sobre Redes Sociales:

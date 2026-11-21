@@ -537,7 +537,7 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
     setTimeout(() => setCopiedAccountKey(null), 1800);
   };
 
-  const fullPaymentTemplate = `Cuentas Oficiales Digital MYK Lab\nTitular: Maycol Castañeda\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Ahorro Soles: Cta 8330613655 | CCI 00972420833061365561`;
+  const fullPaymentTemplate = `Cuentas Oficiales Digital MYK Lab\nTitular: Maycol Castañeda\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Ahorro Soles: Cta 8330613655 | CCI 00972420833061365561\n\nModalidad de Pago:\n• Desarrollo de Software (Chatbots IA, Webs y Apps): 50% de adelanto para iniciar y 50% contra entrega.\n• Impulso Redes Sociales: Pago 100% adelantado.`;
 
   // Calculations for Beauty Kanban
   const beautyTotalRevenue = beautyAppointments.reduce((acc, curr) => acc + (curr.amount || 0), 0);
@@ -1907,7 +1907,7 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
 
                 <div className="flex flex-wrap gap-2 pt-1">
                   <a
-                    href={`https://wa.me/${activeSelectedLead.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hola ${activeSelectedLead.clientName}, te saluda Maycol Castañeda de Digital MYK Lab. Te comparto nuestras cuentas oficiales para iniciar tu proyecto:\n\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Soles: Cta 8330613655 | CCI 00972420833061365561\nTitular: Maycol Castañeda`)}`}
+                    href={`https://wa.me/${activeSelectedLead.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hola ${activeSelectedLead.clientName}, te saluda Maycol Castañeda de Digital MYK Lab. Te comparto nuestras cuentas oficiales para iniciar tu proyecto:\n\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Soles: Cta 8330613655 | CCI 00972420833061365561\nTitular: Maycol Castañeda\n\n📌 Modalidad: Desarrollo de Software con 50% de adelanto para iniciar y 50% contra entrega (Impulso en Redes Sociales es pago 100% adelantado).`)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-center flex items-center justify-center gap-1.5"
