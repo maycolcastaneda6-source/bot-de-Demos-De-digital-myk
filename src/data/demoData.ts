@@ -102,9 +102,11 @@ export const initialSalesGreenApiConfig: GreenApiConfig = {
   webhookUrl: '/api/green-api/sales/webhook',
   connectedPhone: '+51 929 327 654',
   status: 'disconnected',
-  lastPing: 'Instancia 710722803080 lista — falta ingresar apiTokenInstance',
+  lastPing: 'Motor Directo Sin Límites listo para vincular por QR o código de 8 dígitos',
   pollingEnabled: true,
-  autoRespondAll: true
+  autoRespondAll: true,
+  replyMode: 'poll_and_text',
+  provider: 'baileys'
 };
 
 export const initialSalesLeads: SalesLead[] = [

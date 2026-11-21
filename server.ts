@@ -4,6 +4,15 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import {
+  connectBaileysSales,
+  disconnectBaileysSales,
+  exportBaileysAuthBase64,
+  getBaileysStatusSnapshot,
+  registerBaileysCallbacks,
+  restoreBaileysAuthFromEnv,
+  sendBaileysSalesReply
+} from "./whatsappSalesProvider.ts";
 
 dotenv.config();
 
@@ -225,7 +234,7 @@ app.post("/api/ai/enhance-text", async (req, res) => {
   }
 });
 
-// In-memory demo states and Green-API configuration (Line 1: Demos + Line 2: Digital MYK Lab Ventas)
+// In-memory demo states and WhatsApp configuration (Line 1: Demos + Line 2: Digital MYK Lab Ventas)
 interface GreenApiConfigState {
   idInstance: string;
   apiTokenInstance: string;
@@ -237,6 +246,10 @@ interface GreenApiConfigState {
   pollingEnabled?: boolean;
   autoRespondAll?: boolean;
   replyMode?: 'poll_and_text' | 'interactive' | 'text_only';
+  provider?: 'baileys' | 'cloud_api' | 'green_api';
+  cloudPhoneNumberId?: string;
+  cloudAccessToken?: string;
+  cloudVerifyToken?: string;
 }
 
 const GREEN_CONFIG_PATH = path.join(process.cwd(), "green_api_store.json");
@@ -277,16 +290,29 @@ let greenApiConfig: GreenApiConfigState = {
 
 const resolvedSalesId = storedSalesConfig.idInstance || process.env.SALES_GREEN_API_ID_INSTANCE || "710722803080";
 const resolvedSalesToken = storedSalesConfig.apiTokenInstance || process.env.SALES_GREEN_API_TOKEN || "";
+const resolvedCloudPhoneId = storedSalesConfig.cloudPhoneNumberId || process.env.SALES_CLOUD_PHONE_NUMBER_ID || "";
+const resolvedCloudToken = storedSalesConfig.cloudAccessToken || process.env.SALES_CLOUD_ACCESS_TOKEN || "";
+const resolvedSalesProvider: 'baileys' | 'cloud_api' | 'green_api' =
+  storedSalesConfig.provider || (resolvedCloudPhoneId && resolvedCloudToken ? 'cloud_api' : 'baileys');
+
 let salesGreenApiConfig: GreenApiConfigState = {
   idInstance: resolvedSalesId,
   apiTokenInstance: resolvedSalesToken,
   apiUrl: storedSalesConfig.apiUrl || process.env.SALES_GREEN_API_URL || "https://7107.api.greenapi.com",
   connectedPhone: storedSalesConfig.connectedPhone || "+51 929 327 654",
-  status: (resolvedSalesId && resolvedSalesToken) ? "connected" : "disconnected",
+  status: resolvedSalesProvider === 'cloud_api'
+    ? ((resolvedCloudPhoneId && resolvedCloudToken) ? "connected" : "disconnected")
+    : resolvedSalesProvider === 'green_api'
+      ? ((resolvedSalesId && resolvedSalesToken) ? "connected" : "disconnected")
+      : "disconnected",
   lastPing: new Date().toISOString(),
   pollingEnabled: storedSalesConfig.pollingEnabled !== undefined ? storedSalesConfig.pollingEnabled : true,
   autoRespondAll: storedSalesConfig.autoRespondAll !== undefined ? storedSalesConfig.autoRespondAll : true,
-  replyMode: storedSalesConfig.replyMode || 'poll_and_text'
+  replyMode: storedSalesConfig.replyMode || 'poll_and_text',
+  provider: resolvedSalesProvider,
+  cloudPhoneNumberId: resolvedCloudPhoneId,
+  cloudAccessToken: resolvedCloudToken,
+  cloudVerifyToken: storedSalesConfig.cloudVerifyToken || process.env.SALES_CLOUD_VERIFY_TOKEN || "digitalmyklab_verify"
 };
 
 // In-memory activity log for Green-API (supports both lines)
@@ -688,9 +714,14 @@ async function runSalesGreenApiDrainBatch(maxItems = 10): Promise<number> {
   return processed;
 }
 
-// Background auto-polling worker for Line 2 (Ventas Digital MYK Lab: +51 929 327 654)
+// Background auto-polling worker for Line 2 (only when provider is legacy Green-API)
 setInterval(() => {
-  if (salesGreenApiConfig.pollingEnabled && salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance) {
+  if (
+    salesGreenApiConfig.provider === 'green_api' &&
+    salesGreenApiConfig.pollingEnabled &&
+    salesGreenApiConfig.idInstance &&
+    salesGreenApiConfig.apiTokenInstance
+  ) {
     runSalesGreenApiDrainBatch(5).catch(() => {});
   }
 }, 1500);
@@ -1689,13 +1720,123 @@ Mensaje actual del cliente (${session.name} - ${formattedPhone}):
   }
   saveStoredSalesLeads();
 
-  // Send out via Line 2 Green-API using Interactive Buttons + automatic fallback
+  // Send out via Active Sales WhatsApp Provider (Default: Unlimited Baileys Engine, or Cloud API, or Green-API)
   // Show header ONLY on the 1st bot response; omit it completely from the 2nd response onward
   const messageHeader = isFirstMessage ? "Digital MYK Lab • Atención Comercial" : "";
   const messageFooter = isFirstMessage ? "Seguridad y Garantía • digitalmyklab.onrender.com" : "";
 
+  const activeProvider = salesGreenApiConfig.provider || 'baileys';
   let greenApiSendStatus = "not_sent";
-  if (salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance && sessionKey.length >= 7) {
+
+  if (activeProvider === 'baileys' && sessionKey.length >= 7) {
+    const baileysSnap = getBaileysStatusSnapshot();
+    if (baileysSnap.status === 'connected') {
+      const targetJid =
+        (rawChatId && rawChatId.includes("@") && !rawChatId.endsWith("@c.us"))
+          ? rawChatId
+          : (session.replyChatId && session.replyChatId.includes("@") && !session.replyChatId.endsWith("@c.us"))
+            ? session.replyChatId
+            : `${formattedPhone.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
+
+      const dispatch = await sendBaileysSalesReply({
+        targetJid,
+        phone: formattedPhone,
+        header: messageHeader,
+        body: botReply,
+        buttons: replyButtons,
+        replyMode: salesGreenApiConfig.replyMode || 'poll_and_text'
+      });
+      greenApiSendStatus = dispatch.status;
+      addGreenApiLog({
+        type: dispatch.status === "sent_success" ? 'outgoing_send' : 'error',
+        phone: dispatch.usedChatId.endsWith("@lid") ? `${formattedPhone} (LID)` : formattedPhone,
+        sender: session.name,
+        text: botReply.slice(0, 120) + (botReply.length > 120 ? "..." : ""),
+        status: dispatch.status === "sent_success"
+          ? (dispatch.mode === 'poll_and_text'
+              ? '🟢 [Motor Directo] Texto + Encuesta Táctil Enviados (Sin Límites)'
+              : '🟢 [Motor Directo] Respuesta Enviada (Sin Límites)')
+          : `🔴 [Motor Directo] ${dispatch.errorDetail || dispatch.status}`,
+        details: { chatId: dispatch.usedChatId, ...dispatch.data }
+      }, 'sales');
+    } else {
+      addGreenApiLog({
+        type: 'error',
+        phone: formattedPhone,
+        sender: session.name,
+        status: '⚠️ Motor Directo WhatsApp desconectado: escanea el QR o vincula el código de 8 dígitos en CRM PRO'
+      }, 'sales');
+    }
+  } else if (activeProvider === 'cloud_api' && sessionKey.length >= 7) {
+    const phoneNumId = (salesGreenApiConfig.cloudPhoneNumberId || "").trim();
+    const accessTok = (salesGreenApiConfig.cloudAccessToken || "").trim();
+    if (phoneNumId && accessTok) {
+      try {
+        const cleanPhone = formattedPhone.replace(/[^0-9]/g, "");
+        const headerPrefix = messageHeader ? `*${messageHeader}*\n\n` : "";
+        const cloudButtons = replyButtons.slice(0, 3).map(b => ({
+          type: "reply",
+          reply: { id: b.buttonId.slice(0, 256), title: b.buttonText.slice(0, 20) }
+        }));
+        const useButtons = cloudButtons.length > 0 && salesGreenApiConfig.replyMode !== 'text_only';
+        const cloudPayload = useButtons
+          ? {
+              messaging_product: "whatsapp",
+              to: cleanPhone,
+              type: "interactive",
+              interactive: {
+                type: "button",
+                ...(messageHeader ? { header: { type: "text", text: messageHeader } } : {}),
+                body: { text: botReply.slice(0, 1024) },
+                ...(messageFooter ? { footer: { text: messageFooter.slice(0, 60) } } : {}),
+                action: { buttons: cloudButtons }
+              }
+            }
+          : {
+              messaging_product: "whatsapp",
+              to: cleanPhone,
+              type: "text",
+              text: { body: `${headerPrefix}${botReply}` }
+            };
+        const cloudRes = await fetch(`https://graph.facebook.com/v21.0/${phoneNumId}/messages`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${accessTok}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(cloudPayload)
+        });
+        const cloudJson: any = await cloudRes.json().catch(() => ({}));
+        greenApiSendStatus = cloudRes.ok ? "sent_success" : `error_${cloudRes.status}`;
+        addGreenApiLog({
+          type: cloudRes.ok ? 'outgoing_send' : 'error',
+          phone: formattedPhone,
+          sender: session.name,
+          text: botReply.slice(0, 120) + (botReply.length > 120 ? "..." : ""),
+          status: cloudRes.ok
+            ? '🟢 [Meta Cloud API] Botones Oficiales Enviados'
+            : `🔴 [Meta Cloud API] Error HTTP ${cloudRes.status}: ${cloudJson?.error?.message || 'Revisa credenciales'}`,
+          details: cloudJson
+        }, 'sales');
+      } catch (cloudErr: any) {
+        greenApiSendStatus = "network_error";
+        addGreenApiLog({
+          type: 'error',
+          phone: formattedPhone,
+          sender: session.name,
+          status: '🔴 [Meta Cloud API] Error de Red',
+          details: { message: cloudErr.message }
+        }, 'sales');
+      }
+    } else {
+      addGreenApiLog({
+        type: 'error',
+        phone: formattedPhone,
+        sender: session.name,
+        status: '⚠️ Falta Phone Number ID o Access Token de Meta Cloud API'
+      }, 'sales');
+    }
+  } else if (activeProvider === 'green_api' && salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance && sessionKey.length >= 7) {
     const cleanPhone = formattedPhone.replace(/[^0-9]/g, "");
     const chatId =
       (rawChatId && rawChatId.includes("@"))
@@ -1744,7 +1885,7 @@ Mensaje actual del cliente (${session.name} - ${formattedPhone}):
         details: { message: err.message }
       }, 'sales');
     }
-  } else if (!salesGreenApiConfig.apiTokenInstance) {
+  } else if (activeProvider === 'green_api' && !salesGreenApiConfig.apiTokenInstance) {
     addGreenApiLog({
       type: 'error',
       phone: formattedPhone,
@@ -2297,13 +2438,45 @@ app.post("/api/green-api/config", (req, res) => {
   res.json({ success: true, config: greenApiConfig });
 });
 
-// Endpoints: Green-API Line 2 (Digital MYK Lab Comercial +51 929 327 654)
+// Endpoints: Sales WhatsApp Multi-Provider Config & Direct Unlimited Engine (Baileys + Cloud API + Green-API)
+function getEffectiveSalesConfig(): GreenApiConfigState {
+  const activeProvider = salesGreenApiConfig.provider || 'baileys';
+  const baileysSnap = getBaileysStatusSnapshot();
+  const computedStatus: 'connected' | 'disconnected' | 'testing' =
+    activeProvider === 'baileys'
+      ? (baileysSnap.status === 'connected' ? 'connected' : 'disconnected')
+      : activeProvider === 'cloud_api'
+        ? ((salesGreenApiConfig.cloudPhoneNumberId && salesGreenApiConfig.cloudAccessToken) ? 'connected' : 'disconnected')
+        : ((salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance) ? 'connected' : 'disconnected');
+  return {
+    ...salesGreenApiConfig,
+    provider: activeProvider,
+    status: computedStatus,
+    connectedPhone: (activeProvider === 'baileys' && baileysSnap.connectedPhone)
+      ? baileysSnap.connectedPhone
+      : salesGreenApiConfig.connectedPhone
+  };
+}
+
 app.get("/api/green-api/sales/config", (req, res) => {
-  res.json(salesGreenApiConfig);
+  res.json(getEffectiveSalesConfig());
 });
 
 app.post("/api/green-api/sales/config", (req, res) => {
-  const { idInstance, apiTokenInstance, apiUrl, connectedPhone, pollingEnabled, autoRespondAll, replyMode } = req.body;
+  const {
+    idInstance,
+    apiTokenInstance,
+    apiUrl,
+    connectedPhone,
+    pollingEnabled,
+    autoRespondAll,
+    replyMode,
+    provider,
+    cloudPhoneNumberId,
+    cloudAccessToken,
+    cloudVerifyToken
+  } = req.body;
+
   if (idInstance !== undefined) {
     salesGreenApiConfig.idInstance = idInstance.trim();
   }
@@ -2327,22 +2500,189 @@ app.post("/api/green-api/sales/config", (req, res) => {
   if (replyMode === 'poll_and_text' || replyMode === 'interactive' || replyMode === 'text_only') {
     salesGreenApiConfig.replyMode = replyMode;
   }
+  if (provider === 'baileys' || provider === 'cloud_api' || provider === 'green_api') {
+    salesGreenApiConfig.provider = provider;
+  }
+  if (cloudPhoneNumberId !== undefined) {
+    salesGreenApiConfig.cloudPhoneNumberId = String(cloudPhoneNumberId).trim();
+  }
+  if (cloudAccessToken !== undefined && String(cloudAccessToken).trim()) {
+    salesGreenApiConfig.cloudAccessToken = String(cloudAccessToken).trim();
+  }
+  if (cloudVerifyToken !== undefined && String(cloudVerifyToken).trim()) {
+    salesGreenApiConfig.cloudVerifyToken = String(cloudVerifyToken).trim();
+  }
+
   salesGreenApiConfig.lastPing = new Date().toISOString();
-  salesGreenApiConfig.status = (salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance) ? "connected" : "disconnected";
+  const effective = getEffectiveSalesConfig();
+  salesGreenApiConfig.status = effective.status;
 
   saveStoredJsonConfig(SALES_GREEN_CONFIG_PATH, salesGreenApiConfig);
 
   addGreenApiLog({
     type: 'diagnostic',
-    status: `⚙️ Línea Ventas 929 327 654 Guardada (idInstance: ${salesGreenApiConfig.idInstance || 'pendiente'}, modo: ${salesGreenApiConfig.replyMode})`,
-    details: { apiUrl: salesGreenApiConfig.apiUrl, hasToken: !!salesGreenApiConfig.apiTokenInstance, polling: salesGreenApiConfig.pollingEnabled, replyMode: salesGreenApiConfig.replyMode }
+    status: `⚙️ Motor WhatsApp Guardado: ${salesGreenApiConfig.provider === 'baileys' ? 'Motor Directo Sin Límites' : salesGreenApiConfig.provider === 'cloud_api' ? 'Meta Cloud API Oficial' : 'Green-API'} (modo: ${salesGreenApiConfig.replyMode})`,
+    details: { provider: salesGreenApiConfig.provider, replyMode: salesGreenApiConfig.replyMode }
   }, 'sales');
 
-  if (salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance) {
+  if (salesGreenApiConfig.provider === 'green_api' && salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance) {
     runSalesGreenApiDrainBatch(10).catch(() => {});
   }
 
-  res.json({ success: true, config: salesGreenApiConfig });
+  res.json({ success: true, config: effective });
+});
+
+// Direct Unlimited Engine (Baileys) & Meta Cloud API Endpoints
+app.get("/api/whatsapp/sales/status", (req, res) => {
+  res.json({
+    provider: salesGreenApiConfig.provider || 'baileys',
+    baileys: getBaileysStatusSnapshot(),
+    config: getEffectiveSalesConfig()
+  });
+});
+
+app.post("/api/whatsapp/sales/connect", async (req, res) => {
+  try {
+    const { pairingPhone, forceReset } = req.body || {};
+    salesGreenApiConfig.provider = 'baileys';
+    saveStoredJsonConfig(SALES_GREEN_CONFIG_PATH, salesGreenApiConfig);
+
+    const snap = await connectBaileysSales({
+      pairingPhone: typeof pairingPhone === 'string' ? pairingPhone.trim() : undefined,
+      forceResetAuth: !!forceReset
+    });
+    res.json({ success: true, baileys: snap, config: getEffectiveSalesConfig() });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/whatsapp/sales/disconnect", async (req, res) => {
+  try {
+    const { clearAuth } = req.body || {};
+    const snap = await disconnectBaileysSales(!!clearAuth);
+    addGreenApiLog({
+      type: 'diagnostic',
+      status: clearAuth ? '🔌 Sesión WhatsApp eliminada para vincular otro número' : '⏸️ Motor Directo WhatsApp desconectado temporalmente'
+    }, 'sales');
+    res.json({ success: true, baileys: snap, config: getEffectiveSalesConfig() });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get("/api/whatsapp/sales/export-auth", (req, res) => {
+  const authBase64 = exportBaileysAuthBase64();
+  if (!authBase64) {
+    return res.status(404).json({ success: false, error: "Primero vincula tu WhatsApp escaneando el QR o con el código de 8 dígitos." });
+  }
+  res.json({ success: true, authBase64 });
+});
+
+app.post("/api/whatsapp/sales/send-message", async (req, res) => {
+  try {
+    const { phone, message } = req.body || {};
+    const cleanPhone = String(phone || "").replace(/[^0-9]/g, "");
+    if (!cleanPhone || !message) {
+      return res.status(400).json({ error: "phone y message son requeridos" });
+    }
+    const provider = salesGreenApiConfig.provider || 'baileys';
+    if (provider === 'baileys') {
+      const dispatch = await sendBaileysSalesReply({
+        phone: `+${cleanPhone}`,
+        header: "",
+        body: String(message),
+        buttons: [],
+        replyMode: 'text_only'
+      });
+      const ok = dispatch.status === "sent_success";
+      addGreenApiLog({
+        type: ok ? 'outgoing_send' : 'error',
+        phone: `+${cleanPhone}`,
+        sender: 'Prueba Manual (Motor Directo)',
+        text: String(message),
+        status: ok ? '🟢 [Motor Directo] Prueba Enviada (Sin Límites)' : `🔴 ${dispatch.errorDetail || dispatch.status}`
+      }, 'sales');
+      return res.status(ok ? 200 : 400).json({ success: ok, ...dispatch });
+    }
+    if (provider === 'cloud_api') {
+      const phoneNumId = (salesGreenApiConfig.cloudPhoneNumberId || "").trim();
+      const accessTok = (salesGreenApiConfig.cloudAccessToken || "").trim();
+      if (!phoneNumId || !accessTok) {
+        return res.status(400).json({ error: "Configura primero Phone Number ID y Access Token de Meta Cloud API" });
+      }
+      const cloudRes = await fetch(`https://graph.facebook.com/v21.0/${phoneNumId}/messages`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${accessTok}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: cleanPhone,
+          type: "text",
+          text: { body: String(message) }
+        })
+      });
+      const data = await cloudRes.json().catch(() => ({}));
+      addGreenApiLog({
+        type: cloudRes.ok ? 'outgoing_send' : 'error',
+        phone: `+${cleanPhone}`,
+        sender: 'Prueba Manual (Meta Cloud API)',
+        text: String(message),
+        status: cloudRes.ok ? '🟢 [Meta Cloud API] Enviado' : `🔴 Error HTTP ${cloudRes.status}`,
+        details: data
+      }, 'sales');
+      return res.status(cloudRes.ok ? 200 : cloudRes.status).json({ success: cloudRes.ok, data });
+    }
+    return res.status(400).json({ error: "Usa /api/green-api/sales/send-message para Green-API" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Meta WhatsApp Cloud API Verification & Webhook
+app.get("/api/whatsapp/sales/cloud-webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+  const expected = salesGreenApiConfig.cloudVerifyToken || "digitalmyklab_verify";
+  if (mode === "subscribe" && token === expected) {
+    return res.status(200).send(String(challenge || ""));
+  }
+  return res.sendStatus(403);
+});
+
+app.post("/api/whatsapp/sales/cloud-webhook", async (req, res) => {
+  try {
+    const entry = req.body?.entry?.[0];
+    const change = entry?.changes?.[0]?.value;
+    const msg = change?.messages?.[0];
+    const contact = change?.contacts?.[0];
+    if (msg && msg.from && !markAndCheckDuplicateGreenMessage(msg.id)) {
+      const senderPhone = String(msg.from).replace(/[^0-9]/g, "");
+      const senderName = contact?.profile?.name || "Prospecto WhatsApp";
+      let textMessage = "";
+      if (msg.type === "text") textMessage = msg.text?.body || "";
+      else if (msg.type === "interactive") {
+        textMessage = msg.interactive?.button_reply?.id || msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.id || msg.interactive?.list_reply?.title || "";
+      } else if (msg.type === "button") {
+        textMessage = msg.button?.payload || msg.button?.text || "";
+      } else {
+        textMessage = "Hola";
+      }
+      if (!textMessage) textMessage = "Hola";
+      addGreenApiLog({
+        type: 'incoming_webhook',
+        phone: `+${senderPhone}`,
+        sender: senderName,
+        text: textMessage,
+        status: '📥 [Meta Cloud API] Mensaje Recibido'
+      }, 'sales');
+      await processDigitalMykSalesMessage(senderPhone, senderName, textMessage);
+    }
+    res.sendStatus(200);
+  } catch (err: any) {
+    console.warn("[Cloud API Webhook error]:", err?.message);
+    res.sendStatus(200);
+  }
 });
 
 app.post("/api/green-api/sales/set-queue-mode", async (req, res) => {
@@ -2513,7 +2853,11 @@ app.get("/api/green-api/sales/diagnose", async (req, res) => {
 });
 
 app.get("/api/green-api/sales/logs", (req, res) => {
-  res.json({ config: salesGreenApiConfig, logs: salesGreenApiLogs });
+  res.json({
+    config: getEffectiveSalesConfig(),
+    logs: salesGreenApiLogs,
+    baileys: getBaileysStatusSnapshot()
+  });
 });
 
 app.post("/api/green-api/sales/send-message", async (req, res) => {
@@ -2919,7 +3263,7 @@ app.get("/api/demo/data", (req, res) => {
     beautyAppointments,
     salesLeads,
     greenApiConfig,
-    salesGreenApiConfig
+    salesGreenApiConfig: getEffectiveSalesConfig()
   });
 });
 
@@ -3021,6 +3365,29 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`[OmniFlow Server] Running on http://localhost:${PORT}`);
+    registerBaileysCallbacks(
+      async (payload) => {
+        if (markAndCheckDuplicateGreenMessage(payload.messageId)) return;
+        addGreenApiLog({
+          type: 'incoming_webhook',
+          phone: payload.replyJid.endsWith("@lid") ? `+${payload.phone} (LID)` : `+${payload.phone}`,
+          sender: payload.senderName,
+          text: payload.text,
+          status: '📥 [Motor Directo] Mensaje Recibido (Sin Límites)'
+        }, 'sales');
+        await processDigitalMykSalesMessage(payload.phone, payload.senderName, payload.text, payload.replyJid);
+      },
+      (entry) => {
+        addGreenApiLog(entry, 'sales');
+      }
+    );
+
+    const restored = restoreBaileysAuthFromEnv();
+    const snap = getBaileysStatusSnapshot();
+    if ((restored || snap.hasSavedSession) && (salesGreenApiConfig.provider || 'baileys') === 'baileys') {
+      console.log("[Baileys Sales Engine] Auto-resuming saved WhatsApp session...");
+      connectBaileysSales().catch((e) => console.warn("[Baileys Auto-Resume Warning]:", e?.message));
+    }
   });
 }
 

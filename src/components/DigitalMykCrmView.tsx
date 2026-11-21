@@ -26,7 +26,12 @@ import {
   ShoppingBag,
   Trash2,
   Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  QrCode,
+  KeyRound,
+  PlugZap,
+  Power,
+  ShieldCheck
 } from 'lucide-react';
 import { GreenApiConfig, SalesLead, SalesLeadStage } from '../types';
 
@@ -325,7 +330,10 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
   const [newLeadValue, setNewLeadValue] = useState('1490');
   const [newLeadPaymentMethod, setNewLeadPaymentMethod] = useState('Yape (929327654)');
 
-  // Line 2 Dedicated Green-API State (+51 929 327 654 / Instance 710722803080)
+  // Line 2 Multi-Engine WhatsApp State (+51 929 327 654)
+  const [salesProvider, setSalesProvider] = useState<'baileys' | 'cloud_api' | 'green_api'>(
+    salesGreenApiConfig.provider || 'baileys'
+  );
   const [salesIdInstance, setSalesIdInstance] = useState(salesGreenApiConfig.idInstance || '710722803080');
   const [salesApiTokenInstance, setSalesApiTokenInstance] = useState(salesGreenApiConfig.apiTokenInstance || '');
   const [salesApiUrl, setSalesApiUrl] = useState(salesGreenApiConfig.apiUrl || 'https://7107.api.greenapi.com');
@@ -333,6 +341,15 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
   const [salesReplyMode, setSalesReplyMode] = useState<'poll_and_text' | 'interactive' | 'text_only'>(
     salesGreenApiConfig.replyMode || 'poll_and_text'
   );
+  const [baileysStatus, setBaileysStatus] = useState<any>(null);
+  const [pairingPhoneInput, setPairingPhoneInput] = useState('51929327654');
+  const [baileysLoading, setBaileysLoading] = useState(false);
+  const [exportedAuthB64, setExportedAuthB64] = useState<string | null>(null);
+  const [copiedAuthB64, setCopiedAuthB64] = useState(false);
+  const [cloudPhoneNumberId, setCloudPhoneNumberId] = useState(salesGreenApiConfig.cloudPhoneNumberId || '');
+  const [cloudAccessToken, setCloudAccessToken] = useState(salesGreenApiConfig.cloudAccessToken || '');
+  const [cloudVerifyToken, setCloudVerifyToken] = useState(salesGreenApiConfig.cloudVerifyToken || 'digitalmyklab_verify');
+
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [diagnosing, setDiagnosing] = useState(false);
@@ -350,22 +367,36 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
   const [setWebhookResult, setSetWebhookResult] = useState<string | null>(null);
   const [isSalesPollingActive, setIsSalesPollingActive] = useState(true);
 
-  const currentHost = typeof window !== 'undefined' ? window.location.origin : 'https://omniflow-bot.onrender.com';
+  const currentHost = typeof window !== 'undefined' ? window.location.origin : 'https://digitalmyklab.onrender.com';
   const salesWebhookUrl = `${currentHost}/api/green-api/sales/webhook`;
+  const cloudWebhookUrl = `${currentHost}/api/whatsapp/sales/cloud-webhook`;
 
   const fetchSalesLogs = useCallback(() => {
     fetch('/api/green-api/sales/logs')
       .then(r => r.json())
       .then(data => {
         if (data.logs) setSalesTrafficLogs(data.logs);
+        if (data.baileys) setBaileysStatus(data.baileys);
         if (data.config?.pollingEnabled !== undefined) {
           setIsSalesPollingActive(data.config.pollingEnabled);
         }
         if (data.config?.replyMode) {
           setSalesReplyMode(data.config.replyMode);
         }
+        if (data.config?.provider) {
+          setSalesProvider(data.config.provider);
+        }
         if (data.config?.apiTokenInstance) {
           setSalesApiTokenInstance(prev => prev || data.config.apiTokenInstance);
+        }
+        if (data.config?.cloudPhoneNumberId) {
+          setCloudPhoneNumberId(prev => prev || data.config.cloudPhoneNumberId);
+        }
+        if (data.config?.cloudAccessToken) {
+          setCloudAccessToken(prev => prev || data.config.cloudAccessToken);
+        }
+        if (data.config?.cloudVerifyToken) {
+          setCloudVerifyToken(prev => prev || data.config.cloudVerifyToken);
         }
       })
       .catch(() => {});
@@ -373,7 +404,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
 
   useEffect(() => {
     fetchSalesLogs();
-    const interval = setInterval(fetchSalesLogs, 3000);
+    const interval = setInterval(fetchSalesLogs, 2000);
     return () => clearInterval(interval);
   }, [fetchSalesLogs]);
 
@@ -390,6 +421,9 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
     if (salesGreenApiConfig.replyMode) {
       setSalesReplyMode(salesGreenApiConfig.replyMode);
     }
+    if (salesGreenApiConfig.provider) {
+      setSalesProvider(salesGreenApiConfig.provider);
+    }
   }, [salesGreenApiConfig]);
 
   const handleIdInstanceChange = (val: string) => {
@@ -400,18 +434,95 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
     }
   };
 
+  const handleSwitchProvider = (nextProvider: 'baileys' | 'cloud_api' | 'green_api') => {
+    setSalesProvider(nextProvider);
+    onUpdateSalesGreenApiConfig({
+      provider: nextProvider,
+      replyMode: salesReplyMode
+    });
+    setTimeout(fetchSalesLogs, 350);
+  };
+
+  const handleConnectBaileysQR = async (forceReset = false) => {
+    setBaileysLoading(true);
+    try {
+      const res = await fetch('/api/whatsapp/sales/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forceReset })
+      });
+      const data = await res.json();
+      if (data.baileys) setBaileysStatus(data.baileys);
+      setSalesProvider('baileys');
+      setTimeout(fetchSalesLogs, 500);
+    } catch {} finally {
+      setBaileysLoading(false);
+    }
+  };
+
+  const handleConnectBaileysPairing = async () => {
+    const clean = pairingPhoneInput.replace(/[^0-9]/g, '');
+    if (clean.length < 8) return;
+    setBaileysLoading(true);
+    try {
+      const res = await fetch('/api/whatsapp/sales/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pairingPhone: clean, forceReset: true })
+      });
+      const data = await res.json();
+      if (data.baileys) setBaileysStatus(data.baileys);
+      setSalesProvider('baileys');
+      setTimeout(fetchSalesLogs, 1800);
+    } catch {} finally {
+      setBaileysLoading(false);
+    }
+  };
+
+  const handleDisconnectBaileys = async (clearAuth = false) => {
+    setBaileysLoading(true);
+    try {
+      const res = await fetch('/api/whatsapp/sales/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clearAuth })
+      });
+      const data = await res.json();
+      if (data.baileys) setBaileysStatus(data.baileys);
+      setExportedAuthB64(null);
+      fetchSalesLogs();
+    } catch {} finally {
+      setBaileysLoading(false);
+    }
+  };
+
+  const handleExportBaileysAuth = async () => {
+    try {
+      const res = await fetch('/api/whatsapp/sales/export-auth');
+      const data = await res.json();
+      if (data.authBase64) {
+        setExportedAuthB64(data.authBase64);
+      }
+    } catch {}
+  };
+
   const handleSaveGreenConfig = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateSalesGreenApiConfig({
+      provider: salesProvider,
       idInstance: salesIdInstance.trim(),
       apiTokenInstance: salesApiTokenInstance.trim(),
       apiUrl: salesApiUrl.trim(),
       connectedPhone: salesConnectedPhone.trim(),
       replyMode: salesReplyMode,
+      cloudPhoneNumberId: cloudPhoneNumberId.trim(),
+      cloudAccessToken: cloudAccessToken.trim(),
+      cloudVerifyToken: cloudVerifyToken.trim() || 'digitalmyklab_verify',
       status: 'connected'
     });
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
+    setTimeout(fetchSalesLogs, 350);
   };
 
   const handleDiagnose = async () => {
@@ -509,13 +620,21 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
     setTestSending(true);
     setTestResult(null);
     try {
-      const res = await fetch('/api/green-api/sales/send-message', {
+      const endpoint =
+        salesProvider === 'green_api'
+          ? '/api/green-api/sales/send-message'
+          : '/api/whatsapp/sales/send-message';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: testPhone, message: testMessage })
       });
       const data = await res.json();
-      setTestResult(data.success ? '✅ Mensaje enviado con éxito' : `❌ Error: ${data.error || 'Verifica credenciales'}`);
+      setTestResult(
+        data.success
+          ? '✅ Mensaje enviado con éxito'
+          : `❌ Error: ${data.errorDetail || data.error || 'Verifica conexión'}`
+      );
       fetchSalesLogs();
     } catch (e: any) {
       setTestResult(`❌ ${e.message}`);
@@ -662,13 +781,35 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
               <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono text-xs font-bold">
                 {salesConnectedPhone}
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                Botones Interactivos Activos 24/7
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${
+                  (salesProvider === 'baileys' && baileysStatus?.status === 'connected') ||
+                  (salesProvider === 'cloud_api' && cloudPhoneNumberId && cloudAccessToken)
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                    : salesProvider === 'baileys'
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    (salesProvider === 'baileys' && baileysStatus?.status === 'connected') ||
+                    (salesProvider === 'cloud_api' && cloudPhoneNumberId && cloudAccessToken)
+                      ? 'bg-emerald-400 animate-ping'
+                      : 'bg-amber-400'
+                  }`}
+                />
+                {salesProvider === 'baileys'
+                  ? baileysStatus?.status === 'connected'
+                    ? 'Motor Directo Sin Límites 24/7'
+                    : 'Motor Directo (Falta Vincular QR)'
+                  : salesProvider === 'cloud_api'
+                    ? 'Meta Cloud API Oficial'
+                    : 'Green-API Legacy'}
               </span>
             </div>
             <p className="text-xs text-slate-300 mt-1 max-w-2xl">
-              Canal comercial corporativo con <strong>botones interactivos en WhatsApp</strong>, cuentas oficiales de cobro a nombre de <strong>Maycol Castañeda</strong> y seguimiento CRM en tiempo real.
+              Canal comercial corporativo sin límite de números nuevos, cuentas oficiales a nombre de <strong>Maycol Castañeda</strong> y seguimiento CRM en tiempo real.
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px]">
               <a
@@ -682,7 +823,16 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
                 <ExternalLink className="w-3 h-3" />
               </a>
               <span className="text-slate-600">•</span>
-              <span className="text-slate-400">Instancia Green-API: <strong className="text-slate-200 font-mono">{salesIdInstance}</strong></span>
+              <span className="text-slate-400">
+                Motor Activo:{' '}
+                <strong className="text-emerald-300">
+                  {salesProvider === 'baileys'
+                    ? 'Directo Sin Límites (Gratis)'
+                    : salesProvider === 'cloud_api'
+                      ? 'Meta Cloud API Oficial'
+                      : `Green-API (${salesIdInstance})`}
+                </strong>
+              </span>
             </div>
           </div>
         </div>
@@ -726,13 +876,75 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
             }`}
           >
             <Settings className="w-4 h-4" />
-            <span>WhatsApp API ({salesIdInstance.slice(-4)})</span>
+            <span>
+              {salesProvider === 'baileys'
+                ? 'Conectar WhatsApp'
+                : salesProvider === 'cloud_api'
+                  ? 'Meta Cloud API'
+                  : `Green-API (${salesIdInstance.slice(-4)})`}
+            </span>
           </button>
         </div>
       </div>
 
-      {/* Live WhatsApp Delivery / Quota Alert Banner */}
+      {/* Live WhatsApp Connection & Delivery Alert Banner */}
       {(() => {
+        if (salesProvider === 'baileys') {
+          if (baileysStatus?.status === 'connected') return null;
+          return (
+            <div className="p-4 rounded-2xl border bg-cyan-950/40 border-cyan-500/40 text-cyan-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl shrink-0 bg-cyan-500/20 text-cyan-300">
+                  <PlugZap className="w-5 h-5" />
+                </div>
+                <div className="text-xs space-y-1">
+                  <p className="font-extrabold text-cyan-200">
+                    Nuevo Motor Directo WhatsApp Activado — Sin Límites de 3 Chats ni Pagos a Terceros
+                  </p>
+                  <p className="text-cyan-100/85 leading-relaxed">
+                    Para empezar a responder automáticamente a <strong>todos los números nuevos</strong> que escriban al <strong>{salesConnectedPhone}</strong>, vincula tu WhatsApp escaneando el <strong>Código QR</strong> o con un <strong>Código de 8 dígitos</strong> (no requiere Green-API).
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGreenPanel(true);
+                  handleConnectBaileysQR(false);
+                }}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white text-xs font-extrabold flex items-center gap-2 shrink-0 cursor-pointer shadow-lg"
+              >
+                <QrCode className="w-4 h-4" />
+                <span>Vincular WhatsApp Ahora (QR)</span>
+              </button>
+            </div>
+          );
+        }
+
+        if (salesProvider === 'cloud_api') {
+          if (cloudPhoneNumberId && cloudAccessToken) return null;
+          return (
+            <div className="p-4 rounded-2xl border bg-amber-950/45 border-amber-500/45 text-amber-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl shrink-0 bg-amber-500/20 text-amber-300">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="text-xs space-y-1">
+                  <p className="font-extrabold text-amber-200">Configura tu Meta WhatsApp Cloud API Oficial</p>
+                  <p className="text-amber-200/80">Ingresa el Phone Number ID y Permanent Access Token para responder con botones nativos oficiales.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGreenPanel(true)}
+                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white text-xs font-bold shrink-0 cursor-pointer"
+              >
+                Configurar Meta Cloud API
+              </button>
+            </div>
+          );
+        }
+
         const latestErrorLog = salesTrafficLogs.find(l => l.type === 'error');
         const isQuota466Error = Boolean(
           latestErrorLog &&
@@ -763,10 +975,10 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
                 {isMissingToken ? (
                   <>
                     <p className="font-extrabold text-amber-200">
-                      Falta configurar el apiTokenInstance para la línea {salesConnectedPhone}
+                      Falta configurar el apiTokenInstance para Green-API ({salesConnectedPhone})
                     </p>
                     <p className="text-amber-200/80 leading-relaxed">
-                      Sin el Token guardado en el servidor (o en la variable de entorno <code className="px-1 py-0.5 rounded bg-slate-900 text-cyan-300">SALES_GREEN_API_TOKEN</code> en Render), los mensajes entrantes no pueden responderse por WhatsApp al reiniciarse el servidor.
+                      O cambia al <strong>Motor Directo Sin Límites</strong> para conectar por QR sin tokens ni cuotas mensuales.
                     </p>
                   </>
                 ) : isQuota466Error ? (
@@ -775,16 +987,13 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
                       Límite de Plan DEVELOPER en Green-API (HTTP 466) {latestErrorLog?.phone ? `• Número afectado: ${latestErrorLog.phone}` : ''}
                     </p>
                     <p className="text-rose-200/85 leading-relaxed">
-                      Green-API en tarifa gratuita <strong>DEVELOPER</strong> bloquea las respuestas a partir del <strong>4.º número nuevo del mes</strong>. Los primeros 3 números responden normal y los números nuevos adicionales devuelven error 466 hasta cambiar la instancia {salesIdInstance} a un plan pago.
+                      Green-API bloqueó este número nuevo. Cambia ahora mismo al <strong>Motor Directo Sin Límites</strong> con un clic.
                     </p>
                   </>
                 ) : (
                   <>
                     <p className="font-extrabold text-amber-200">
                       Alerta de entrega WhatsApp: {latestErrorLog?.status} {latestErrorLog?.phone ? `(${latestErrorLog.phone})` : ''}
-                    </p>
-                    <p className="text-amber-200/80">
-                      Revisa el diagnóstico o verifica el modo de entrega en el panel de WhatsApp API.
                     </p>
                   </>
                 )}
@@ -795,13 +1004,14 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
+                  handleSwitchProvider('baileys');
                   setShowGreenPanel(true);
-                  handleDiagnose();
+                  handleConnectBaileysQR(false);
                 }}
-                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <Activity className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Abrir WhatsApp API &amp; Diagnosticar</span>
+                <PlugZap className="w-3.5 h-3.5" />
+                <span>Cambiar a Motor Directo Sin Límites</span>
               </button>
             </div>
           </div>
@@ -1067,207 +1277,526 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
         </div>
       )}
 
-      {/* Collapsible Dedicated Green-API Panel for Line +51 929 327 654 ONLY */}
+      {/* Collapsible Multi-Provider WhatsApp Hub for Line +51 929 327 654 */}
       {showGreenPanel && (
         <div className="p-5 rounded-2xl bg-slate-900 border border-cyan-500/35 shadow-xl space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div>
               <h4 className="text-sm font-extrabold text-white">
-                Conectividad WhatsApp — Digital MYK Lab ({salesConnectedPhone})
+                Motor de Conexión WhatsApp — Digital MYK Lab ({salesConnectedPhone})
               </h4>
               <p className="text-xs text-slate-400">
-                Configuración independiente de tu instancia Green-API <strong className="text-cyan-300">{salesIdInstance}</strong>.
+                Elige la herramienta de conexión. Recomendado: <strong className="text-emerald-300">Motor Directo Sin Límites</strong> (gratis, sin límite de 3 chats).
               </p>
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex flex-wrap gap-1.5">
               <button
-                onClick={handleDiagnose}
-                disabled={diagnosing}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                type="button"
+                onClick={() => handleSwitchProvider('baileys')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border cursor-pointer flex items-center gap-1.5 ${
+                  salesProvider === 'baileys'
+                    ? 'bg-emerald-600 text-white border-emerald-500 shadow'
+                    : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
+                }`}
               >
-                <Activity className="w-3.5 h-3.5 text-cyan-400" />
-                <span>{diagnosing ? 'Verificando...' : 'Diagnóstico Instancia'}</span>
+                <PlugZap className="w-3.5 h-3.5" />
+                <span>Motor Directo (Sin Límites)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchProvider('cloud_api')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border cursor-pointer flex items-center gap-1.5 ${
+                  salesProvider === 'cloud_api'
+                    ? 'bg-indigo-600 text-white border-indigo-500 shadow'
+                    : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Meta Cloud API (Oficial)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchProvider('green_api')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border cursor-pointer flex items-center gap-1.5 ${
+                  salesProvider === 'green_api'
+                    ? 'bg-slate-700 text-white border-slate-600 shadow'
+                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
+                }`}
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span>Green-API (Legacy)</span>
               </button>
             </div>
           </div>
 
-          <form onSubmit={handleSaveGreenConfig} className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">Número WhatsApp:</label>
-              <input
-                type="text"
-                value={salesConnectedPhone}
-                onChange={(e) => setSalesConnectedPhone(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-cyan-300 font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">idInstance:</label>
-              <input
-                type="text"
-                value={salesIdInstance}
-                onChange={(e) => handleIdInstanceChange(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">apiTokenInstance:</label>
-              <input
-                type="password"
-                value={salesApiTokenInstance}
-                onChange={(e) => setSalesApiTokenInstance(e.target.value)}
-                placeholder="Pega tu token aquí"
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">Modo de Entrega (Botones):</label>
-              <select
-                value={salesReplyMode}
-                onChange={(e) => setSalesReplyMode(e.target.value as 'poll_and_text' | 'interactive' | 'text_only')}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-emerald-300 font-semibold"
-              >
-                <option value="poll_and_text">Texto + Encuesta Táctil (100% Números Nuevos)</option>
-                <option value="interactive">Botones Interactivos (Android clásico)</option>
-                <option value="text_only">Solo Texto + Opciones Numeradas</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">Host API URL:</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={salesApiUrl}
-                  onChange={(e) => setSalesApiUrl(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
-                />
-                <button
-                  type="submit"
-                  className="px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold shrink-0 cursor-pointer"
-                >
-                  {saveSuccess ? '✓' : 'Guardar'}
-                </button>
-              </div>
-            </div>
-          </form>
-
-          {/* Webhook URL & Controls */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-200">Webhook Exclusivo Digital MYK Lab:</span>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(salesWebhookUrl);
-                    setCopiedWebhook(true);
-                    setTimeout(() => setCopiedWebhook(false), 1800);
-                  }}
-                  className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 hover:bg-slate-700 flex items-center gap-1 cursor-pointer"
-                >
-                  <Copy className="w-3 h-3" />
-                  <span>{copiedWebhook ? 'Copiado' : 'Copiar'}</span>
-                </button>
-              </div>
-              <p className="font-mono text-[11px] text-cyan-400 break-all">{salesWebhookUrl}</p>
-              <div className="flex flex-wrap gap-2 pt-1">
-                <button
-                  onClick={handleSetWebhookUrl}
-                  disabled={settingWebhook}
-                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold cursor-pointer"
-                >
-                  {settingWebhook ? 'Aplicando...' : '🔗 Aplicar Webhook'}
-                </button>
-                <button
-                  onClick={handleActivateQueueMode}
-                  disabled={queueModeLoading}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer"
-                >
-                  ⚡ Modo Cola Directo
-                </button>
-                <button
-                  onClick={handleTogglePolling}
-                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer"
-                >
-                  {isSalesPollingActive ? '⏸️ Pausar Polling' : '▶️ Reanudar Polling'}
-                </button>
-                <button
-                  onClick={handleForcePoll}
-                  disabled={forcePolling}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-semibold flex items-center gap-1 cursor-pointer"
-                >
-                  <RefreshCw className={`w-3 h-3 ${forcePolling ? 'animate-spin' : ''}`} />
-                  <span>Sincronizar Ahora</span>
-                </button>
-              </div>
-              {(setWebhookResult || queueModeResult || pollResult) && (
-                <p className="text-[11px] text-emerald-300">{setWebhookResult || queueModeResult || pollResult}</p>
-              )}
-              {diagnoseResult && (
-                <div className="p-2.5 rounded bg-slate-900 border border-slate-800 text-[11px] space-y-1">
+          {/* TAB 1: DIRECT UNLIMITED ENGINE (BAILEYS) */}
+          {salesProvider === 'baileys' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
+              <div className="p-4 rounded-xl bg-slate-950 border border-emerald-500/30 space-y-4">
+                <div className="flex items-center justify-between gap-2">
                   <div>
-                    Estado Instancia: <strong className="text-emerald-400">{diagnoseResult.stateInstance?.stateInstance || diagnoseResult.error || 'Desconocido'}</strong>
-                    {diagnoseResult.settings?.tariff && (
-                      <span className="ml-2 text-slate-400">• Plan: <strong className="text-amber-300">{diagnoseResult.settings.tariff}</strong></span>
-                    )}
+                    <h5 className="font-extrabold text-white text-sm">Vinculación Directa Multi-Dispositivo</h5>
+                    <p className="text-[11px] text-slate-400">
+                      Responde a todos los números nuevos ilimitadamente con Texto + Encuesta Táctil.
+                    </p>
                   </div>
-                  {Array.isArray(diagnoseResult.warnings) && diagnoseResult.warnings.length > 0 && (
-                    <div className="space-y-1 pt-1">
-                      {diagnoseResult.warnings.map((w: string, i: number) => (
-                        <p key={i} className="text-amber-300 text-[10px]">⚠️ {w}</p>
-                      ))}
+                  <span
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border shrink-0 ${
+                      baileysStatus?.status === 'connected'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : baileysStatus?.status === 'qr_ready' || baileysStatus?.status === 'pairing_ready'
+                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                          : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    }`}
+                  >
+                    {baileysStatus?.status === 'connected'
+                      ? `🟢 Conectado (${baileysStatus.connectedPhone || salesConnectedPhone})`
+                      : baileysStatus?.status === 'qr_ready'
+                        ? '📱 Escanea el QR'
+                        : baileysStatus?.status === 'pairing_ready'
+                          ? '🔑 Código Listo'
+                          : baileysStatus?.status === 'connecting'
+                            ? '⏳ Conectando...'
+                            : '⚪ Desconectado'}
+                  </span>
+                </div>
+
+                {baileysStatus?.lastError && (
+                  <p className="p-2 rounded-lg bg-rose-950/60 border border-rose-500/40 text-rose-200 text-[11px]">
+                    ⚠️ {baileysStatus.lastError}
+                  </p>
+                )}
+
+                {baileysStatus?.status === 'qr_ready' && baileysStatus?.qrDataUrl && (
+                  <div className="p-4 rounded-xl bg-white text-slate-900 flex flex-col items-center gap-2 max-w-xs mx-auto">
+                    <img src={baileysStatus.qrDataUrl} alt="QR WhatsApp Digital MYK Lab" className="w-52 h-52" />
+                    <p className="text-[11px] font-bold text-center text-slate-800">
+                      WhatsApp → Dispositivos vinculados → Vincular un dispositivo
+                    </p>
+                  </div>
+                )}
+
+                {baileysStatus?.status === 'pairing_ready' && baileysStatus?.pairingCode && (
+                  <div className="p-4 rounded-xl bg-slate-900 border border-cyan-500/40 text-center space-y-2">
+                    <p className="text-[11px] text-slate-300 font-semibold">
+                      Ingresa este código de 8 dígitos en tu WhatsApp ({pairingPhoneInput}):
+                    </p>
+                    <p className="font-mono text-2xl font-extrabold tracking-widest text-cyan-300">
+                      {baileysStatus.pairingCode}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      WhatsApp → Dispositivos vinculados → Vincular un dispositivo → <strong>Vincular con número de teléfono</strong>
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={baileysLoading}
+                    onClick={() => handleConnectBaileysQR(false)}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    <span>{baileysStatus?.status === 'connected' ? 'Reconectar / Refrescar' : 'Generar QR para Escanear'}</span>
+                  </button>
+
+                  {baileysStatus?.status === 'connected' && (
+                    <button
+                      type="button"
+                      disabled={baileysLoading}
+                      onClick={() => handleDisconnectBaileys(true)}
+                      className="px-3 py-2 rounded-xl bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-500/30 font-bold flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Power className="w-3.5 h-3.5" />
+                      <span>Cerrar Sesión / Cambiar Número</span>
+                    </button>
+                  )}
+                </div>
+
+                {baileysStatus?.status !== 'connected' && (
+                  <div className="pt-2 border-t border-slate-800 space-y-2">
+                    <label className="block text-slate-300 font-semibold">
+                      O vincula sin escanear QR (Código de 8 dígitos en tu celular):
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={pairingPhoneInput}
+                        onChange={(e) => setPairingPhoneInput(e.target.value)}
+                        placeholder="51929327654"
+                        className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-cyan-300 font-mono"
+                      />
+                      <button
+                        type="button"
+                        disabled={baileysLoading}
+                        onClick={handleConnectBaileysPairing}
+                        className="px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>Pedir Código</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-slate-300 font-semibold">Formato de Botones al Responder:</label>
+                    <select
+                      value={salesReplyMode}
+                      onChange={(e) => {
+                        const mode = e.target.value as 'poll_and_text' | 'interactive' | 'text_only';
+                        setSalesReplyMode(mode);
+                        onUpdateSalesGreenApiConfig({ provider: 'baileys', replyMode: mode });
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-emerald-300 font-semibold"
+                    >
+                      <option value="poll_and_text">Texto + Encuesta Táctil (Recomendado)</option>
+                      <option value="text_only">Solo Texto + Opciones Numeradas (1, 2, 3)</option>
+                    </select>
+                  </div>
+
+                  {baileysStatus?.hasSavedSession && (
+                    <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-slate-300 font-semibold">
+                          Respaldo Permanente Render (<code className="text-cyan-300">SALES_WA_AUTH_B64</code>):
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleExportBaileysAuth}
+                          className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold cursor-pointer"
+                        >
+                          Exportar Sesión Render
+                        </button>
+                      </div>
+                      {exportedAuthB64 && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            readOnly
+                            value={exportedAuthB64}
+                            className="flex-1 px-2 py-1 rounded bg-slate-950 border border-slate-800 text-[10px] font-mono text-emerald-300"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(exportedAuthB64);
+                              setCopiedAuthB64(true);
+                              setTimeout(() => setCopiedAuthB64(false), 1800);
+                            }}
+                            className="px-2 py-1 rounded bg-slate-800 text-cyan-300 text-[10px] font-bold cursor-pointer"
+                          >
+                            {copiedAuthB64 ? '¡Copiado!' : 'Copiar'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* Test Send + Live Logs */}
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
-              <form onSubmit={handleSendTest} className="flex flex-wrap gap-2">
-                <input
-                  type="text"
-                  value={testPhone}
-                  onChange={(e) => setTestPhone(e.target.value)}
-                  placeholder="+51 9..."
-                  className="w-36 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300 font-mono"
-                />
-                <input
-                  type="text"
-                  value={testMessage}
-                  onChange={(e) => setTestMessage(e.target.value)}
-                  className="flex-1 min-w-[140px] px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white"
-                />
-                <button
-                  type="submit"
-                  disabled={testSending}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 cursor-pointer"
-                >
-                  <Send className="w-3 h-3" />
-                  <span>{testSending ? '...' : 'Enviar'}</span>
-                </button>
-              </form>
-              {testResult && <p className="text-[11px] text-slate-300">{testResult}</p>}
+              {/* Test Send + Live Logs */}
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+                <p className="font-bold text-slate-200">Probar Envío Real por Motor Directo (Sin Límites):</p>
+                <form onSubmit={handleSendTest} className="flex flex-wrap gap-2">
+                  <input
+                    type="text"
+                    value={testPhone}
+                    onChange={(e) => setTestPhone(e.target.value)}
+                    placeholder="+51 9..."
+                    className="w-36 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300 font-mono"
+                  />
+                  <input
+                    type="text"
+                    value={testMessage}
+                    onChange={(e) => setTestMessage(e.target.value)}
+                    className="flex-1 min-w-[140px] px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white"
+                  />
+                  <button
+                    type="submit"
+                    disabled={testSending}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Send className="w-3 h-3" />
+                    <span>{testSending ? '...' : 'Enviar'}</span>
+                  </button>
+                </form>
+                {testResult && <p className="text-[11px] text-slate-300">{testResult}</p>}
 
-              <div className="border-t border-slate-800 pt-2">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 mb-1.5">
-                  <Terminal className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Tráfico en Vivo (+51 929 327 654)</span>
-                </div>
-                <div className="max-h-28 overflow-y-auto space-y-1 text-[10px] font-mono">
-                  {salesTrafficLogs.length === 0 ? (
-                    <p className="text-slate-600">Sin eventos recientes en esta sesión.</p>
-                  ) : (
-                    salesTrafficLogs.slice(0, 8).map(log => (
-                      <div key={log.id} className="flex items-start justify-between gap-2 text-slate-300 bg-slate-900/70 px-2 py-1 rounded">
-                        <span className="truncate">{log.status} {log.phone ? `(${log.phone})` : ''} {log.text ? `• ${log.text}` : ''}</span>
-                        <span className="text-slate-500 shrink-0">{log.timestamp}</span>
-                      </div>
-                    ))
-                  )}
+                <div className="border-t border-slate-800 pt-2">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 mb-1.5">
+                    <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Tráfico en Vivo ({salesConnectedPhone})</span>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-1 text-[10px] font-mono">
+                    {salesTrafficLogs.length === 0 ? (
+                      <p className="text-slate-600">Sin eventos recientes en esta sesión.</p>
+                    ) : (
+                      salesTrafficLogs.slice(0, 10).map(log => (
+                        <div key={log.id} className="flex items-start justify-between gap-2 text-slate-300 bg-slate-900/70 px-2 py-1 rounded">
+                          <span className="truncate">{log.status} {log.phone ? `(${log.phone})` : ''} {log.text ? `• ${log.text}` : ''}</span>
+                          <span className="text-slate-500 shrink-0">{log.timestamp}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* TAB 2: META WHATSAPP CLOUD API OFICIAL */}
+          {salesProvider === 'cloud_api' && (
+            <div className="space-y-4 text-xs">
+              <form onSubmit={handleSaveGreenConfig} className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Phone Number ID (Meta):</label>
+                  <input
+                    type="text"
+                    value={cloudPhoneNumberId}
+                    onChange={(e) => setCloudPhoneNumberId(e.target.value)}
+                    placeholder="Ej: 123456789012345"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Permanent Access Token:</label>
+                  <input
+                    type="password"
+                    value={cloudAccessToken}
+                    onChange={(e) => setCloudAccessToken(e.target.value)}
+                    placeholder="EAAG..."
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Verify Token (Webhook):</label>
+                  <input
+                    type="text"
+                    value={cloudVerifyToken}
+                    onChange={(e) => setCloudVerifyToken(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-cyan-300 font-mono"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    className="w-full px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold cursor-pointer"
+                  >
+                    {saveSuccess ? '✓ Guardado' : 'Guardar Meta Cloud API'}
+                  </button>
+                </div>
+              </form>
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="text-slate-400 font-semibold">Callback URL para Meta Developers:</span>
+                  <p className="font-mono text-[11px] text-cyan-400 break-all">{cloudWebhookUrl}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(cloudWebhookUrl)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold shrink-0 cursor-pointer"
+                >
+                  Copiar Webhook Meta
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: GREEN-API LEGACY */}
+          {salesProvider === 'green_api' && (
+            <>
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={handleDiagnose}
+                  disabled={diagnosing}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{diagnosing ? 'Verificando...' : 'Diagnóstico Instancia Green-API'}</span>
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveGreenConfig} className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Número WhatsApp:</label>
+                  <input
+                    type="text"
+                    value={salesConnectedPhone}
+                    onChange={(e) => setSalesConnectedPhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-cyan-300 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">idInstance:</label>
+                  <input
+                    type="text"
+                    value={salesIdInstance}
+                    onChange={(e) => handleIdInstanceChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">apiTokenInstance:</label>
+                  <input
+                    type="password"
+                    value={salesApiTokenInstance}
+                    onChange={(e) => setSalesApiTokenInstance(e.target.value)}
+                    placeholder="Pega tu token aquí"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Modo de Entrega (Botones):</label>
+                  <select
+                    value={salesReplyMode}
+                    onChange={(e) => setSalesReplyMode(e.target.value as 'poll_and_text' | 'interactive' | 'text_only')}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-emerald-300 font-semibold"
+                  >
+                    <option value="poll_and_text">Texto + Encuesta Táctil (100% Números Nuevos)</option>
+                    <option value="interactive">Botones Interactivos (Android clásico)</option>
+                    <option value="text_only">Solo Texto + Opciones Numeradas</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Host API URL:</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={salesApiUrl}
+                      onChange={(e) => setSalesApiUrl(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
+                    />
+                    <button
+                      type="submit"
+                      className="px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold shrink-0 cursor-pointer"
+                    >
+                      {saveSuccess ? '✓' : 'Guardar'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-200">Webhook Exclusivo Digital MYK Lab:</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(salesWebhookUrl);
+                        setCopiedWebhook(true);
+                        setTimeout(() => setCopiedWebhook(false), 1800);
+                      }}
+                      className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 hover:bg-slate-700 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{copiedWebhook ? 'Copiado' : 'Copiar'}</span>
+                    </button>
+                  </div>
+                  <p className="font-mono text-[11px] text-cyan-400 break-all">{salesWebhookUrl}</p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      onClick={handleSetWebhookUrl}
+                      disabled={settingWebhook}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold cursor-pointer"
+                    >
+                      {settingWebhook ? 'Aplicando...' : '🔗 Aplicar Webhook'}
+                    </button>
+                    <button
+                      onClick={handleActivateQueueMode}
+                      disabled={queueModeLoading}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer"
+                    >
+                      ⚡ Modo Cola Directo
+                    </button>
+                    <button
+                      onClick={handleTogglePolling}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold cursor-pointer"
+                    >
+                      {isSalesPollingActive ? '⏸️ Pausar Polling' : '▶️ Reanudar Polling'}
+                    </button>
+                    <button
+                      onClick={handleForcePoll}
+                      disabled={forcePolling}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-semibold flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${forcePolling ? 'animate-spin' : ''}`} />
+                      <span>Sincronizar Ahora</span>
+                    </button>
+                  </div>
+                  {(setWebhookResult || queueModeResult || pollResult) && (
+                    <p className="text-[11px] text-emerald-300">{setWebhookResult || queueModeResult || pollResult}</p>
+                  )}
+                  {diagnoseResult && (
+                    <div className="p-2.5 rounded bg-slate-900 border border-slate-800 text-[11px] space-y-1">
+                      <div>
+                        Estado Instancia: <strong className="text-emerald-400">{diagnoseResult.stateInstance?.stateInstance || diagnoseResult.error || 'Desconocido'}</strong>
+                        {diagnoseResult.settings?.tariff && (
+                          <span className="ml-2 text-slate-400">• Plan: <strong className="text-amber-300">{diagnoseResult.settings.tariff}</strong></span>
+                        )}
+                      </div>
+                      {Array.isArray(diagnoseResult.warnings) && diagnoseResult.warnings.length > 0 && (
+                        <div className="space-y-1 pt-1">
+                          {diagnoseResult.warnings.map((w: string, i: number) => (
+                            <p key={i} className="text-amber-300 text-[10px]">⚠️ {w}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+                  <form onSubmit={handleSendTest} className="flex flex-wrap gap-2">
+                    <input
+                      type="text"
+                      value={testPhone}
+                      onChange={(e) => setTestPhone(e.target.value)}
+                      placeholder="+51 9..."
+                      className="w-36 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-cyan-300 font-mono"
+                    />
+                    <input
+                      type="text"
+                      value={testMessage}
+                      onChange={(e) => setTestMessage(e.target.value)}
+                      className="flex-1 min-w-[140px] px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white"
+                    />
+                    <button
+                      type="submit"
+                      disabled={testSending}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Send className="w-3 h-3" />
+                      <span>{testSending ? '...' : 'Enviar'}</span>
+                    </button>
+                  </form>
+                  {testResult && <p className="text-[11px] text-slate-300">{testResult}</p>}
+
+                  <div className="border-t border-slate-800 pt-2">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 mb-1.5">
+                      <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Tráfico en Vivo (+51 929 327 654)</span>
+                    </div>
+                    <div className="max-h-28 overflow-y-auto space-y-1 text-[10px] font-mono">
+                      {salesTrafficLogs.length === 0 ? (
+                        <p className="text-slate-600">Sin eventos recientes en esta sesión.</p>
+                      ) : (
+                        salesTrafficLogs.slice(0, 8).map(log => (
+                          <div key={log.id} className="flex items-start justify-between gap-2 text-slate-300 bg-slate-900/70 px-2 py-1 rounded">
+                            <span className="truncate">{log.status} {log.phone ? `(${log.phone})` : ''} {log.text ? `• ${log.text}` : ''}</span>
+                            <span className="text-slate-500 shrink-0">{log.timestamp}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 

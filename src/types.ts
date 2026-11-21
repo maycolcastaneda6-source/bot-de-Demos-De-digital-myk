@@ -166,6 +166,10 @@ export interface GreenApiConfig {
   pollingEnabled?: boolean;
   autoRespondAll?: boolean;
   replyMode?: 'poll_and_text' | 'interactive' | 'text_only';
+  provider?: 'baileys' | 'cloud_api' | 'green_api';
+  cloudPhoneNumberId?: string;
+  cloudAccessToken?: string;
+  cloudVerifyToken?: string;
 }
 
 export type SalesLeadStage =
