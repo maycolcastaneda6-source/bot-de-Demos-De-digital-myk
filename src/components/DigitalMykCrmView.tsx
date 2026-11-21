@@ -1097,8 +1097,20 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
                 <p className="text-[11px] text-emerald-300">{setWebhookResult || queueModeResult || pollResult}</p>
               )}
               {diagnoseResult && (
-                <div className="p-2 rounded bg-slate-900 border border-slate-800 text-[11px]">
-                  Estado Instancia: <strong className="text-emerald-400">{diagnoseResult.stateInstance?.stateInstance || diagnoseResult.error || 'Desconocido'}</strong>
+                <div className="p-2.5 rounded bg-slate-900 border border-slate-800 text-[11px] space-y-1">
+                  <div>
+                    Estado Instancia: <strong className="text-emerald-400">{diagnoseResult.stateInstance?.stateInstance || diagnoseResult.error || 'Desconocido'}</strong>
+                    {diagnoseResult.settings?.tariff && (
+                      <span className="ml-2 text-slate-400">• Plan: <strong className="text-amber-300">{diagnoseResult.settings.tariff}</strong></span>
+                    )}
+                  </div>
+                  {Array.isArray(diagnoseResult.warnings) && diagnoseResult.warnings.length > 0 && (
+                    <div className="space-y-1 pt-1">
+                      {diagnoseResult.warnings.map((w: string, i: number) => (
+                        <p key={i} className="text-amber-300 text-[10px]">⚠️ {w}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
