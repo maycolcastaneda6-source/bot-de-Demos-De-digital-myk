@@ -327,7 +327,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
   const [newLeadPhone, setNewLeadPhone] = useState('+51 9');
   const [newLeadService, setNewLeadService] = useState('Combo Asistente IA + Web Gratis');
   const [newLeadBusiness, setNewLeadBusiness] = useState('');
-  const [newLeadValue, setNewLeadValue] = useState('1490');
+  const [newLeadValue, setNewLeadValue] = useState('390');
   const [newLeadPaymentMethod, setNewLeadPaymentMethod] = useState('Yape (929327654)');
 
   // Line 2 Multi-Engine WhatsApp State (+51 929 327 654)
@@ -655,7 +655,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
       businessType: newLeadBusiness.trim() || 'Por calificar',
       lastMessage: 'Registro comercial directo en CRM PRO',
       status: '🔥 Nuevo Lead',
-      estimatedValue: Number(newLeadValue) || 1490,
+      estimatedValue: Number(newLeadValue) || 390,
       paymentMethod: newLeadPaymentMethod,
       paymentStatus: 'Pendiente',
       priority: 'Alta',
@@ -760,10 +760,10 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
 
   const handleSelectNewLeadService = (service: string) => {
     setNewLeadService(service);
-    if (service === 'Combo Asistente IA + Web Gratis') setNewLeadValue('1490');
-    else if (service === 'Chatbot IA 24/7') setNewLeadValue('1200');
-    else if (service === 'Web Profesional PRO') setNewLeadValue('950');
-    else if (service === 'App a la Medida') setNewLeadValue('2800');
+    if (service === 'Combo Asistente IA + Web Gratis') setNewLeadValue('390');
+    else if (service === 'Chatbot IA 24/7') setNewLeadValue('350');
+    else if (service === 'Web Profesional PRO') setNewLeadValue('290');
+    else if (service === 'App a la Medida') setNewLeadValue('750');
     else setNewLeadValue('22');
   };
 
@@ -2083,33 +2083,33 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
         <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/40 transition-all space-y-2">
           <div className="flex items-center justify-between">
             <span className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-lg">🤖</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">Servicio 1</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">Desde S/ 350</span>
           </div>
           <h4 className="text-xs font-extrabold text-white">Chatbots IA 24/7</h4>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            Atención inmediata en WhatsApp con botones interactivos, calificación de prospectos y agendamiento automático.
+            Atención inmediata con botones y números en WhatsApp, leads calificados, agenda automática y lectura de comprobantes (Plan Emprendedor S/ 350 • Empresarial S/ 550).
           </p>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-purple-500/40 transition-all space-y-2">
           <div className="flex items-center justify-between">
             <span className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-lg">📱</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">Servicio 2</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">Desde S/ 750</span>
           </div>
           <h4 className="text-xs font-extrabold text-white">Apps a la Medida</h4>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            Sistemas CRM, control de inventario, pedidos, ventas y reportes ejecutivos en tiempo real para tu empresa.
+            Panel de ventas del día, productos, pedidos, clientes, reportes y alertas en infraestructura GitHub + Render (PRO S/ 750 • Empresarial S/ 1,250).
           </p>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-indigo-500/40 transition-all space-y-2">
           <div className="flex items-center justify-between">
             <span className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-lg">🌐</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">Servicio 3</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">Desde S/ 290</span>
           </div>
           <h4 className="text-xs font-extrabold text-white">Webs Profesionales PRO</h4>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            Arquitectura de alta velocidad, Certificado SSL, posicionamiento SEO para Google y enlace directo a WhatsApp.
+            Ultrarrápidas en GitHub + Render, Certificado SSL 100%, SEO para Google y enlace WhatsApp (Landing S/ 290 • Corporativa S/ 450).
           </p>
         </div>
 
@@ -2136,11 +2136,11 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
         <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/40 space-y-2">
           <div className="flex items-center justify-between">
             <span className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-lg">🎁</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Plan Integral</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Oferta S/ 390</span>
           </div>
           <h4 className="text-xs font-extrabold text-amber-200">Asistente IA + Web GRATIS</h4>
           <p className="text-[11px] text-slate-300 leading-relaxed">
-            Al implementar tu Asistente IA 24/7 incluimos tu Sitio Web Profesional sin costo adicional, con 99.9% Uptime y soporte continuo.
+            Al implementar tu Asistente IA 24/7 (S/ 390) incluimos tu Sitio Web Profesional en GitHub + Render sin costo adicional, 99.9% Uptime y soporte continuo.
           </p>
         </div>
       </div>

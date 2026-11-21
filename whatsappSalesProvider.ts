@@ -25,6 +25,8 @@ export interface BaileysIncomingPayload {
   replyJid: string;
   messageId: string;
   rawType: string;
+  mediaBase64?: string;
+  mediaMimeType?: string;
 }
 
 type IncomingHandler = (payload: BaileysIncomingPayload) => Promise<void>;
@@ -211,7 +213,8 @@ export async function connectBaileysSales(options?: {
       extractMessageContent,
       getContentType,
       decryptPollVote,
-      getAggregateVotesInPollMessage
+      getAggregateVotesInPollMessage,
+      downloadMediaMessage
     } = baileysMod;
 
     const QRCode = (await import("qrcode")).default;
@@ -457,6 +460,31 @@ export async function connectBaileysSales(options?: {
 
           if (!textMessage) textMessage = "Hola";
 
+          let mediaBase64: string | undefined;
+          let mediaMimeType: string | undefined;
+          if (contentType === "imageMessage" || contentType === "documentMessage") {
+            try {
+              const rawMime = String(content[contentType]?.mimetype || (contentType === "imageMessage" ? "image/jpeg" : "application/pdf"));
+              if (rawMime.startsWith("image/") || rawMime === "application/pdf") {
+                const buf = await downloadMediaMessage(
+                  msg,
+                  "buffer",
+                  {},
+                  {
+                    logger: pino({ level: "silent" }) as any,
+                    reuploadRequest: sock.updateMediaMessage
+                  }
+                );
+                if (Buffer.isBuffer(buf) && buf.length > 0 && buf.length <= 6 * 1024 * 1024) {
+                  mediaBase64 = buf.toString("base64");
+                  mediaMimeType = rawMime;
+                }
+              }
+            } catch (mediaErr: any) {
+              console.warn("[Baileys Media Download Note]:", mediaErr?.message || mediaErr);
+            }
+          }
+
           const phoneDigits = extractPhoneDigitsFromBaileysKey(msg.key);
           if (!phoneDigits || phoneDigits.length < 7) continue;
 
@@ -467,7 +495,9 @@ export async function connectBaileysSales(options?: {
             text: textMessage,
             replyJid,
             messageId: msg.key.id || `bl_${Date.now()}_${phoneDigits}`,
-            rawType: contentType
+            rawType: contentType,
+            mediaBase64,
+            mediaMimeType
           });
         }
       } catch (upsertErr: any) {
@@ -550,8 +580,9 @@ export async function sendBaileysSalesReply(params: {
   const cleanButtons = (params.buttons || []).slice(0, 3);
 
   try {
+    const alreadyHasNumberedMenu = params.body.includes("1️⃣");
     if (params.replyMode === "text_only" || cleanButtons.length === 0) {
-      const buttonsText = cleanButtons.length > 0
+      const buttonsText = (cleanButtons.length > 0 && !alreadyHasNumberedMenu)
         ? `\n\n📌 *Opciones rápidas (responde con el texto o número):*\n${cleanButtons.map((b, i) => `${i + 1}️⃣ ${b.buttonText}`).join("\n")}`
         : "";
       const sentText = await activeSock.sendMessage(targetJid, {

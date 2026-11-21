@@ -119,7 +119,7 @@ export const initialSalesLeads: SalesLead[] = [
     businessType: 'Clínica Dental',
     lastMessage: 'Quisiera contratar el plan de Asistente IA + Web, me envían las cuentas de Yape?',
     status: '💳 Pago / Cierre',
-    estimatedValue: 1490,
+    estimatedValue: 390,
     paymentMethod: 'Yape (929327654)',
     paymentStatus: 'Por Verificar',
     priority: 'Alta',
@@ -134,7 +134,7 @@ export const initialSalesLeads: SalesLead[] = [
     businessType: 'Distribuidora & Delivery',
     lastMessage: 'Necesito una app para gestionar pedidos, stock y reportes en tiempo real',
     status: '📄 Cotizado',
-    estimatedValue: 2800,
+    estimatedValue: 750,
     paymentMethod: 'Scotiabank Ahorro Soles',
     paymentStatus: 'Pendiente',
     priority: 'Alta',
@@ -149,10 +149,10 @@ export const initialSalesLeads: SalesLead[] = [
     businessType: 'Estudio Contable Corporativo',
     lastMessage: 'Excelente, ya realicé la transferencia al CCI de Scotiabank',
     status: '✅ Cerrado',
-    estimatedValue: 950,
+    estimatedValue: 290,
     paymentMethod: 'Scotiabank CCI',
     paymentStatus: 'Confirmado',
     priority: 'Media',
-    notes: 'Abono confirmado • En etapa de diseño e integración SSL + SEO'
+    notes: 'Abono confirmado • En etapa de diseño e integración SSL + SEO en GitHub + Render'
   }
 ];
