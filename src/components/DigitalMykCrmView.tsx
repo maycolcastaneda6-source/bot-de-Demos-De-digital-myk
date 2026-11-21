@@ -339,7 +339,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
   const [salesApiUrl, setSalesApiUrl] = useState(salesGreenApiConfig.apiUrl || 'https://7107.api.greenapi.com');
   const [salesConnectedPhone, setSalesConnectedPhone] = useState(salesGreenApiConfig.connectedPhone || '+51 929 327 654');
   const [salesReplyMode, setSalesReplyMode] = useState<'poll_and_text' | 'interactive' | 'text_only'>(
-    salesGreenApiConfig.replyMode || 'poll_and_text'
+    salesGreenApiConfig.replyMode || 'text_only'
   );
   const [baileysStatus, setBaileysStatus] = useState<any>(null);
   const [pairingPhoneInput, setPairingPhoneInput] = useState('51929327654');
@@ -1338,7 +1338,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
                   <div>
                     <h5 className="font-extrabold text-white text-sm">Vinculación Directa Multi-Dispositivo</h5>
                     <p className="text-[11px] text-slate-400">
-                      Responde a todos los números nuevos ilimitadamente con Texto + Encuesta Táctil.
+                      Responde a todos los números nuevos ilimitadamente con Menú Ejecutivo Limpio por Números (sin encuestas).
                     </p>
                   </div>
                   <span
@@ -1443,7 +1443,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
 
                 <div className="pt-2 border-t border-slate-800 space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <label className="text-slate-300 font-semibold">Formato de Botones al Responder:</label>
+                    <label className="text-slate-300 font-semibold">Formato de Respuesta WhatsApp:</label>
                     <select
                       value={salesReplyMode}
                       onChange={(e) => {
@@ -1453,8 +1453,8 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
                       }}
                       className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-emerald-300 font-semibold"
                     >
-                      <option value="poll_and_text">Texto + Encuesta Táctil (Recomendado)</option>
-                      <option value="text_only">Solo Texto + Opciones Numeradas (1, 2, 3)</option>
+                      <option value="text_only">Menú Limpio con Números (1, 2, 3) — Sin Encuestas (Recomendado)</option>
+                      <option value="poll_and_text">Texto + Encuesta de Votos (opcional)</option>
                     </select>
                   </div>
 
@@ -1650,15 +1650,15 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Modo de Entrega (Botones):</label>
+                  <label className="block text-slate-300 font-semibold mb-1">Formato de Respuesta:</label>
                   <select
                     value={salesReplyMode}
                     onChange={(e) => setSalesReplyMode(e.target.value as 'poll_and_text' | 'interactive' | 'text_only')}
                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-emerald-300 font-semibold"
                   >
-                    <option value="poll_and_text">Texto + Encuesta Táctil (100% Números Nuevos)</option>
+                    <option value="text_only">Menú Limpio con Números (1, 2, 3) — Sin Encuestas (Recomendado)</option>
+                    <option value="poll_and_text">Texto + Encuesta de Votos (opcional)</option>
                     <option value="interactive">Botones Interactivos (Android clásico)</option>
-                    <option value="text_only">Solo Texto + Opciones Numeradas</option>
                   </select>
                 </div>
                 <div>
@@ -2098,7 +2098,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
           </div>
           <h4 className="text-xs font-extrabold text-white">Apps a la Medida</h4>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            Panel de ventas del día, productos, pedidos, clientes, reportes y alertas en infraestructura GitHub + Render (PRO S/ 750 • Empresarial S/ 1,250).
+            Panel de ventas del día, productos, pedidos, clientes, reportes y alertas en infraestructura cloud de alto rendimiento (PRO S/ 750 • Empresarial S/ 1,250).
           </p>
         </div>
 
@@ -2109,7 +2109,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
           </div>
           <h4 className="text-xs font-extrabold text-white">Webs Profesionales PRO</h4>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            Ultrarrápidas en GitHub + Render, Certificado SSL 100%, SEO para Google y enlace WhatsApp (Landing S/ 290 • Corporativa S/ 450).
+            Ultrarrápidas en servidores cloud, Certificado SSL 100%, SEO para Google y enlace WhatsApp (Landing S/ 290 • Corporativa S/ 450).
           </p>
         </div>
 
@@ -2140,7 +2140,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
           </div>
           <h4 className="text-xs font-extrabold text-amber-200">Asistente IA + Web GRATIS</h4>
           <p className="text-[11px] text-slate-300 leading-relaxed">
-            Al implementar tu Asistente IA 24/7 (S/ 390) incluimos tu Sitio Web Profesional en GitHub + Render sin costo adicional, 99.9% Uptime y soporte continuo.
+            Al implementar tu Asistente IA 24/7 (S/ 390) incluimos tu Sitio Web Profesional en servidores cloud sin costo adicional, 99.9% Uptime y soporte continuo.
           </p>
         </div>
       </div>

@@ -105,7 +105,7 @@ export const initialSalesGreenApiConfig: GreenApiConfig = {
   lastPing: 'Motor Directo Sin Límites listo para vincular por QR o código de 8 dígitos',
   pollingEnabled: true,
   autoRespondAll: true,
-  replyMode: 'poll_and_text',
+  replyMode: 'text_only',
   provider: 'baileys'
 };
 
@@ -153,6 +153,6 @@ export const initialSalesLeads: SalesLead[] = [
     paymentMethod: 'Scotiabank CCI',
     paymentStatus: 'Confirmado',
     priority: 'Media',
-    notes: 'Abono confirmado • En etapa de diseño e integración SSL + SEO en GitHub + Render'
+    notes: 'Abono confirmado • En etapa de diseño e integración SSL + SEO en la nube'
   }
 ];

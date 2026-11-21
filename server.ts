@@ -329,6 +329,7 @@ interface GreenApiConfigState {
   pollingEnabled?: boolean;
   autoRespondAll?: boolean;
   replyMode?: 'poll_and_text' | 'interactive' | 'text_only';
+  replyModeExplicit?: boolean;
   provider?: 'baileys' | 'cloud_api' | 'green_api';
   cloudPhoneNumberId?: string;
   cloudAccessToken?: string;
@@ -391,7 +392,10 @@ let salesGreenApiConfig: GreenApiConfigState = {
   lastPing: new Date().toISOString(),
   pollingEnabled: storedSalesConfig.pollingEnabled !== undefined ? storedSalesConfig.pollingEnabled : true,
   autoRespondAll: storedSalesConfig.autoRespondAll !== undefined ? storedSalesConfig.autoRespondAll : true,
-  replyMode: storedSalesConfig.replyMode || 'poll_and_text',
+  replyMode: storedSalesConfig.replyModeExplicit
+    ? (storedSalesConfig.replyMode || 'text_only')
+    : (storedSalesConfig.replyMode === 'interactive' ? 'interactive' : 'text_only'),
+  replyModeExplicit: !!storedSalesConfig.replyModeExplicit,
   provider: resolvedSalesProvider,
   cloudPhoneNumberId: resolvedCloudPhoneId,
   cloudAccessToken: resolvedCloudToken,
@@ -1171,8 +1175,7 @@ function detectDigitalMykServiceIntent(lowerText: string): string {
     lowerText.includes("sitio") ||
     lowerText.includes("landing") ||
     lowerText.includes("seo") ||
-    lowerText.includes("digitalmyklab") ||
-    lowerText.includes("render")
+    lowerText.includes("digitalmyklab")
   ) {
     return "Web Profesional PRO";
   }
@@ -1341,7 +1344,7 @@ function buildProButtonResponse(
     const opLine = receiptInfo?.operationCode ? `\n🔢 *N° Operación:* ${receiptInfo.operationCode}` : "";
 
     return {
-      reply: `✅ *¡Comprobante recibido con éxito${greetingName}!*\n\n🏦 *Método de pago reconocido:* ${recognizedMethod}${amountLine}${opLine}\n📌 *Estado en sistema:* Por Verificar\n\nNuestro director de proyectos (*Maycol Castañeda*) validará el abono en minutos.\n\n🚀 *Paso final para activar hoy mismo:* escríbenos por aquí:\n• Si es *Chatbot / Web / App*: el *nombre de tu negocio y rubro*.\n• Si es *Redes Sociales*: el *link (enlace)* de tu perfil o video.\n\n👇 *O elige una opción rápida:*\n1️⃣ Hablar con Asesor (Maycol)\n2️⃣ Ver Más Servicios\n3️⃣ Ver Cuentas Oficiales`,
+      reply: `✅ *¡Comprobante recibido con éxito${greetingName}!*\n\n🏦 *Método de pago reconocido:* ${recognizedMethod}${amountLine}${opLine}\n📌 *Estado en sistema:* Por Verificar\n\nNuestro director de proyectos (*Maycol Castañeda*) validará el abono en minutos.\n\n🚀 *Paso final para activar hoy mismo:* escríbenos por aquí:\n• Si es *Chatbot / Web / App*: el *nombre de tu negocio y rubro*.\n• Si es *Redes Sociales*: el *link (enlace)* de tu perfil o video.\n\n👇 *Responde con el número (1, 2 o 3):*\n1️⃣ Hablar con Asesor (Maycol)\n2️⃣ Ver Más Servicios\n3️⃣ Ver Cuentas Oficiales`,
       buttons: [
         { buttonId: "btn_advisor", buttonText: "👨‍💻 Hablar con Maycol" },
         { buttonId: "btn_services", buttonText: "💼 Ver Servicios" },
@@ -1356,7 +1359,7 @@ function buildProButtonResponse(
 
   if (action === "btn_pay") {
     return {
-      reply: `💳 *Medios de Pago Oficiales — Digital MYK Lab*\n\n${DIGITAL_MYK_PAYMENT_DETAILS}\n\n📸 *Paso siguiente:* Al realizar tu depósito, *envía la captura o foto del comprobante por este chat* (reconocemos automáticamente si pagaste por Yape, Plin, BN o Scotiabank).\n\n👇 *Responde con el número o toca un botón:*\n1️⃣ Ya realicé el pago (Confirmar)\n2️⃣ Hablar con Asesor Directo\n3️⃣ Volver al Menú de Servicios`,
+      reply: `💳 *Medios de Pago Oficiales — Digital MYK Lab*\n\n${DIGITAL_MYK_PAYMENT_DETAILS}\n\n📸 *Paso siguiente:* Al realizar tu depósito, *envía la captura o foto del comprobante por este chat* (reconocemos automáticamente si pagaste por Yape, Plin, BN o Scotiabank).\n\n👇 *Responde con el número (1, 2 o 3):*\n1️⃣ Ya realicé el pago (Confirmar)\n2️⃣ Hablar con Asesor Directo\n3️⃣ Volver al Menú de Servicios`,
       buttons: [
         { buttonId: "btn_voucher", buttonText: "✅ Ya realicé el pago" },
         { buttonId: "btn_advisor", buttonText: "👨‍💻 Hablar con Maycol" },
@@ -1368,7 +1371,7 @@ function buildProButtonResponse(
 
   if (action === "btn_advisor") {
     return {
-      reply: `👨‍💻 *Atención Directa Asignada*${greetingName} ✅\n\nTu requerimiento ya está registrado para atención prioritaria con *Maycol Castañeda — Digital MYK Lab*.\n\nCuéntanos en un mensaje breve:\n• Qué servicio te interesa y qué deseas lograr (o envía tu enlace si es Redes Sociales).\n\n🌐 Web Oficial: https://digitalmyklab.onrender.com/\n✉️ Correo: compumasster@gmail.com\n\n👇 *O elige con botón / número:*\n1️⃣ Ver Cuentas / Yape y Plin\n2️⃣ Ver Oferta IA + Web (S/ 390)\n3️⃣ Ver Todos los Servicios`,
+      reply: `👨‍💻 *Atención Directa Asignada*${greetingName} ✅\n\nTu requerimiento ya está registrado para atención prioritaria con *Maycol Castañeda — Digital MYK Lab*.\n\nCuéntanos en un mensaje breve:\n• Qué servicio te interesa y qué deseas lograr (o envía tu enlace si es Redes Sociales).\n\n🌐 Web Oficial: https://digitalmyklab.onrender.com/\n✉️ Correo: compumasster@gmail.com\n\n👇 *Responde con el número (1, 2 o 3):*\n1️⃣ Ver Cuentas / Yape y Plin\n2️⃣ Ver Oferta IA + Web (S/ 390)\n3️⃣ Ver Todos los Servicios`,
       buttons: [
         { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
         { buttonId: "btn_combo", buttonText: "🎁 Oferta IA + Web" },
@@ -1386,7 +1389,7 @@ function buildProButtonResponse(
       { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" }
     ];
     return {
-      reply: `💼 *Portafolio Completo — Digital MYK Lab* (_Seguridad y Garantía_) 🛡️\n\n1️⃣ *Chatbots IA, Webs PRO y Apps a la Medida* _(desde S/ 290 • despliegue GitHub + Render)_\n2️⃣ *Crecimiento Redes Sociales* _(desde S/ 10 • TikTok, IG, FB, YouTube)_\n3️⃣ *Oferta Estrella:* Asistente IA 24/7 + Web Profesional GRATIS _(*S/ 390*)_\n4️⃣ *Medios de Pago Oficiales* _(Yape, Plin, BN, Scotiabank)_\n\n👇 *Toca un botón o responde con el número (1, 2, 3 o 4):*`,
+      reply: `💼 *Portafolio Completo — Digital MYK Lab* (_Seguridad y Garantía_) 🛡️\n\n1️⃣ *Chatbots IA, Webs PRO y Apps a la Medida* _(desde S/ 290 • Cloud + SSL)_\n2️⃣ *Crecimiento Redes Sociales* _(desde S/ 10 • TikTok, IG, FB, YouTube)_\n3️⃣ *Oferta Estrella:* Asistente IA 24/7 + Web Profesional GRATIS _(*S/ 390*)_\n4️⃣ *Medios de Pago Oficiales* _(Yape, Plin, BN, Scotiabank)_\n\n👇 *Responde con el número (1, 2, 3 o 4) para continuar:*`,
       buttons: numberMap.slice(0, 3),
       numberMap,
       stageOverride: "💬 En Asesoría"
@@ -1401,7 +1404,7 @@ function buildProButtonResponse(
       { buttonId: "btn_combo", buttonText: "🎁 IA + Web (S/ 390)" }
     ];
     return {
-      reply: `🤖 *Soluciones Tecnológicas — Digital MYK Lab*\n_Despliegue rápido, seguro y escalable en infraestructura cloud (*GitHub + Render*) con Certificado SSL incluido:_\n\n1️⃣ *Chatbot IA 24/7* _(WhatsApp + Botones + CRM)_ — desde *S/ 350*\n2️⃣ *Web Profesional PRO* _(Ultrarrápida + SSL + SEO Google)_ — desde *S/ 290*\n3️⃣ *App a la Medida* _(Ventas, Pedidos, Clientes y Reportes)_ — desde *S/ 750*\n4️⃣ *Oferta Estrella:* Asistente IA 24/7 + Sitio Web GRATIS — *S/ 390*\n\n👇 *Responde con el número (1, 2, 3 o 4) o toca una opción:*`,
+      reply: `🤖 *Soluciones Tecnológicas — Digital MYK Lab*\n_Infraestructura cloud rápida, segura y escalable con Certificado SSL incluido:_\n\n1️⃣ *Chatbot IA 24/7* _(WhatsApp + Menú Interactivo + CRM)_ — desde *S/ 350*\n2️⃣ *Web Profesional PRO* _(Ultrarrápida + SSL + SEO Google)_ — desde *S/ 290*\n3️⃣ *App a la Medida* _(Ventas, Pedidos, Clientes y Reportes)_ — desde *S/ 750*\n4️⃣ *Oferta Estrella:* Asistente IA 24/7 + Sitio Web GRATIS — *S/ 390*\n\n👇 *Responde con el número (1, 2, 3 o 4) para ver el detalle:*`,
       buttons: [
         { buttonId: "btn_chatbot", buttonText: "🤖 Chatbots IA 24/7" },
         { buttonId: "btn_web", buttonText: "🌐 Web Profesional PRO" },
@@ -1414,7 +1417,7 @@ function buildProButtonResponse(
 
   if (action === "btn_social") {
     return {
-      reply: `📈 *Crecimiento en Redes Sociales — Desde S/ 10* 🚀\n\nImpulsa tus cuentas con entrega progresiva y paquetes desde *S/ 10* por pedido _(puedes combinar likes + vistas en el mismo link o distintos)_.\n\n1️⃣ *TikTok* _(Seguidores, En Vivo, Likes, Vistas, Comentarios — desde S/ 10)_\n2️⃣ *Instagram* _(Seguidores, En Vivo, Likes, Vistas, Comentarios — desde S/ 10)_\n3️⃣ *Facebook y YouTube* _(Seguidores, Suscriptores, Vistas, Likes — desde S/ 10)_\n\n👇 *Toca una opción o responde 1, 2 o 3:*`,
+      reply: `📈 *Crecimiento en Redes Sociales — Desde S/ 10* 🚀\n\nImpulsa tus cuentas con entrega progresiva y paquetes desde *S/ 10* por pedido _(puedes combinar likes + vistas en el mismo link o distintos)_.\n\n1️⃣ *TikTok* _(Seguidores, En Vivo, Likes, Vistas, Comentarios — desde S/ 10)_\n2️⃣ *Instagram* _(Seguidores, En Vivo, Likes, Vistas, Comentarios — desde S/ 10)_\n3️⃣ *Facebook y YouTube* _(Seguidores, Suscriptores, Vistas, Likes — desde S/ 10)_\n\n👇 *Responde con el número (1, 2 o 3) o escribe el nombre de la red:*`,
       buttons: [
         { buttonId: "btn_tiktok", buttonText: "🎵 TikTok (desde S/10)" },
         { buttonId: "btn_instagram", buttonText: "📸 Instagram (S/10+)" },
@@ -1426,7 +1429,7 @@ function buildProButtonResponse(
 
   if (action === "btn_fb_yt") {
     return {
-      reply: `📘 *Facebook* & 🔴 *YouTube* — Catálogo desde *S/ 10*\n\n👇 *Elige la plataforma o arma tu pack (toca un botón o escribe 1, 2 o 3):*\n1️⃣ Catálogo *Facebook* (desde S/ 10)\n2️⃣ Catálogo *YouTube* (desde S/ 10)\n3️⃣ *Armar Pack / Combo S/ 10+*`,
+      reply: `📘 *Facebook* & 🔴 *YouTube* — Catálogo desde *S/ 10*\n\n👇 *Responde con el número (1, 2 o 3):*\n1️⃣ Catálogo *Facebook* (desde S/ 10)\n2️⃣ Catálogo *YouTube* (desde S/ 10)\n3️⃣ *Armar Pack / Combo S/ 10+*`,
       buttons: [
         { buttonId: "btn_facebook", buttonText: "📘 Facebook (S/10+)" },
         { buttonId: "btn_youtube", buttonText: "🔴 YouTube (S/10+)" },
@@ -1438,7 +1441,7 @@ function buildProButtonResponse(
 
   if (action === "btn_tiktok") {
     return {
-      reply: `📱 *1. TikTok — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:* 500 (*S/ 12*) | 1K (*S/ 22*) | 3K (*S/ 60*) | 5K (*S/ 95*)\n📺 *Espectadores En Vivo:* 30m (*S/ 35*) | 1h (*S/ 65*) | 1h30m (*S/ 95*)\n❤️ *Likes* _(combinables)_: 1K (*S/ 10*) | 3K (*S/ 22*) | 5K (*S/ 35*) | _500 a S/ 6_\n👁️ *Vistas* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 18*) | 10K (*S/ 32*) | _1K a S/ 6_\n💬 *Comentarios:* 100 (*S/ 10*) | 300 (*S/ 22*) | 500 (*S/ 35*) | 1K (*S/ 65*)\n\n👇 *Paso siguiente — toca un botón o escribe 1, 2 o 3:*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
+      reply: `📱 *1. TikTok — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:* 500 (*S/ 12*) | 1K (*S/ 22*) | 3K (*S/ 60*) | 5K (*S/ 95*)\n📺 *Espectadores En Vivo:* 30m (*S/ 35*) | 1h (*S/ 65*) | 1h30m (*S/ 95*)\n❤️ *Likes* _(combinables)_: 1K (*S/ 10*) | 3K (*S/ 22*) | 5K (*S/ 35*) | _500 a S/ 6_\n👁️ *Vistas* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 18*) | 10K (*S/ 32*) | _1K a S/ 6_\n💬 *Comentarios:* 100 (*S/ 10*) | 300 (*S/ 22*) | 500 (*S/ 35*) | 1K (*S/ 65*)\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
       buttons: [
         { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
         { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
@@ -1450,7 +1453,7 @@ function buildProButtonResponse(
 
   if (action === "btn_instagram") {
     return {
-      reply: `📸 *2. Instagram — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:* 500 (*S/ 12*) | 1K (*S/ 22*) | 3K (*S/ 60*) | 5K (*S/ 95*)\n📺 *En Vivo:* 500 (*S/ 10*) | 1K (*S/ 16*) | 3K (*S/ 40*) | 5K (*S/ 65*)\n❤️ *Likes* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 22*) | 10K (*S/ 40*) | _1K a S/ 6_\n👁️ *Vistas* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 18*) | 10K (*S/ 32*) | _1K a S/ 6_\n💬 *Comentarios:* 500 (*S/ 18*) | 1K (*S/ 30*) | 3K (*S/ 80*)\n\n👇 *Paso siguiente — toca un botón o escribe 1, 2 o 3:*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
+      reply: `📸 *2. Instagram — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:* 500 (*S/ 12*) | 1K (*S/ 22*) | 3K (*S/ 60*) | 5K (*S/ 95*)\n📺 *En Vivo:* 500 (*S/ 10*) | 1K (*S/ 16*) | 3K (*S/ 40*) | 5K (*S/ 65*)\n❤️ *Likes* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 22*) | 10K (*S/ 40*) | _1K a S/ 6_\n👁️ *Vistas* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 18*) | 10K (*S/ 32*) | _1K a S/ 6_\n💬 *Comentarios:* 500 (*S/ 18*) | 1K (*S/ 30*) | 3K (*S/ 80*)\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
       buttons: [
         { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
         { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
@@ -1462,7 +1465,7 @@ function buildProButtonResponse(
 
   if (action === "btn_facebook") {
     return {
-      reply: `📘 *3. Facebook — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:* 500 (*S/ 12*) | 1K (*S/ 22*) | 3K (*S/ 60*) | 5K (*S/ 95*)\n📺 *Transmisión En Vivo:* 60 min (*S/ 45*) | 10 horas (*S/ 95*)\n👍 *Likes* _(combinables)_: 1K (*S/ 10*) | 3K (*S/ 25*) | 5K (*S/ 40*) | _500 a S/ 6_\n👁️ *Vistas* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 18*) | 10K (*S/ 32*) | _1K a S/ 6_\n💬 *Comentarios:* 100 (*S/ 10*) | 300 (*S/ 22*) | 500 (*S/ 35*)\n\n👇 *Paso siguiente — toca un botón o escribe 1, 2 o 3:*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
+      reply: `📘 *3. Facebook — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:* 500 (*S/ 12*) | 1K (*S/ 22*) | 3K (*S/ 60*) | 5K (*S/ 95*)\n📺 *Transmisión En Vivo:* 60 min (*S/ 45*) | 10 horas (*S/ 95*)\n👍 *Likes* _(combinables)_: 1K (*S/ 10*) | 3K (*S/ 25*) | 5K (*S/ 40*) | _500 a S/ 6_\n👁️ *Vistas* _(combinables)_: 2K (*S/ 10*) | 5K (*S/ 18*) | 10K (*S/ 32*) | _1K a S/ 6_\n💬 *Comentarios:* 100 (*S/ 10*) | 300 (*S/ 22*) | 500 (*S/ 35*)\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
       buttons: [
         { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
         { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
@@ -1474,7 +1477,7 @@ function buildProButtonResponse(
 
   if (action === "btn_youtube") {
     return {
-      reply: `🔴 *4. YouTube — Catálogo Oficial (desde S/ 10)*\n\n🔔 *Suscriptores:* 100 (*S/ 10*) | 500 (*S/ 35*) | 1K (*S/ 65*)\n💬 *Comentarios:* 100 (*S/ 10*) | 500 (*S/ 25*) | 1K (*S/ 45*)\n👍 *Likes* _(combinables)_: 300 (*S/ 10*) | 500 (*S/ 14*) | 1K (*S/ 25*) | _100 a S/ 5_\n📺 *En Vivo:* 1K (*S/ 12*) | 5K (*S/ 40*) | 10K (*S/ 85*)\n👁️ *Vistas* _(combinables)_: 300 (*S/ 10*) | 500 (*S/ 14*) | 1K (*S/ 22*) | _100 a S/ 5_\n\n👇 *Paso siguiente — toca un botón o escribe 1, 2 o 3:*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
+      reply: `🔴 *4. YouTube — Catálogo Oficial (desde S/ 10)*\n\n🔔 *Suscriptores:* 100 (*S/ 10*) | 500 (*S/ 35*) | 1K (*S/ 65*)\n💬 *Comentarios:* 100 (*S/ 10*) | 500 (*S/ 25*) | 1K (*S/ 45*)\n👍 *Likes* _(combinables)_: 300 (*S/ 10*) | 500 (*S/ 14*) | 1K (*S/ 25*) | _100 a S/ 5_\n📺 *En Vivo:* 1K (*S/ 12*) | 5K (*S/ 40*) | 10K (*S/ 85*)\n👁️ *Vistas* _(combinables)_: 300 (*S/ 10*) | 500 (*S/ 14*) | 1K (*S/ 22*) | _100 a S/ 5_\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Armar Pack / Combo S/ 10+\n2️⃣ Pagar con Yape / Plin\n3️⃣ Ver Otras Redes`,
       buttons: [
         { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
         { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
@@ -1486,7 +1489,7 @@ function buildProButtonResponse(
 
   if (action === "btn_social_combo") {
     return {
-      reply: `🔥 *Armar Pack Inicio en Redes (desde S/ 10)*\n\nCombina dos o más servicios en el mismo enlace o distintos desde *S/ 10*:\n\n• *YouTube Pack S/ 10:* 100 Likes (S/ 5) + 100 Vistas (S/ 5) = *S/ 10*\n• *TikTok / IG / FB Mix S/ 12:* 500 Likes (S/ 6) + 1K Vistas (S/ 6) = *S/ 12*\n• *Paquete Directo:* cualquier servicio desde *S/ 10*.\n\n📲 Escríbenos el *paquete que deseas + el link* o elige:\n1️⃣ Ver Yape / Cuentas para Pagar\n2️⃣ Enviar Mi Link al Asesor\n3️⃣ Volver al Catálogo de Redes`,
+      reply: `🔥 *Armar Pack Inicio en Redes (desde S/ 10)*\n\nCombina dos o más servicios en el mismo enlace o distintos desde *S/ 10*:\n\n• *YouTube Pack S/ 10:* 100 Likes (S/ 5) + 100 Vistas (S/ 5) = *S/ 10*\n• *TikTok / IG / FB Mix S/ 12:* 500 Likes (S/ 6) + 1K Vistas (S/ 6) = *S/ 12*\n• *Paquete Directo:* cualquier servicio desde *S/ 10*.\n\n📲 Escríbenos el *paquete que deseas + el link* o responde con el número:\n1️⃣ Ver Yape / Cuentas para Pagar\n2️⃣ Enviar Mi Link al Asesor\n3️⃣ Volver al Catálogo de Redes`,
       buttons: [
         { buttonId: "btn_pay", buttonText: "💳 Ver Yape / Cuentas" },
         { buttonId: "btn_advisor", buttonText: "👨‍💻 Enviar Mi Link" },
@@ -1498,7 +1501,7 @@ function buildProButtonResponse(
 
   if (action === "btn_combo" || detectedService === "Combo Asistente IA + Web Gratis") {
     return {
-      reply: `🎁 *Oferta Estrella: Asistente IA 24/7 + Sitio Web Profesional GRATIS*${greetingName}\n\nAl contratar tu *Asistente Virtual con IA 24/7* en *Digital MYK Lab*, te llevas tu *Sitio Web Profesional TOTALMENTE GRATIS* _(consultar condiciones para dominio/hosting externos)_:\n\n✅ *Asistente IA 24/7:* Respuesta en < 1 min, botones/números y registro en CRM\n✅ *Sitio Web PRO:* Despliegue moderno en *GitHub + Render*, SSL incluido y SEO Google\n✅ *Respaldo Total:* Infraestructura 99.9% Uptime y soporte 24/7/365\n\n💰 *Precio Promocional Todo Incluido:* *S/ 390* _(pago único de implementación)_\n\n👇 *Paso siguiente — toca un botón o escribe el número:*\n1️⃣ Contratar / Ver Cuentas de Pago\n2️⃣ Hablar con Asesor Directo\n3️⃣ Ver Todos los Servicios`,
+      reply: `🎁 *Oferta Estrella: Asistente IA 24/7 + Sitio Web Profesional GRATIS*${greetingName}\n\nAl contratar tu *Asistente Virtual con IA 24/7* en *Digital MYK Lab*, te llevas tu *Sitio Web Profesional TOTALMENTE GRATIS* _(consultar condiciones para dominio/hosting externos)_:\n\n✅ *Asistente IA 24/7:* Respuesta en < 1 min, menú interactivo y registro en CRM\n✅ *Sitio Web PRO:* Servidores cloud ultrarrápidos, SSL incluido y SEO Google\n✅ *Respaldo Total:* Infraestructura 99.9% Uptime y soporte 24/7/365\n\n💰 *Precio Promocional Todo Incluido:* *S/ 390* _(pago único de implementación)_\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Contratar / Ver Cuentas de Pago\n2️⃣ Hablar con Asesor Directo\n3️⃣ Ver Todos los Servicios`,
       buttons: [
         { buttonId: "btn_pay", buttonText: "💳 Cuentas / Yape" },
         { buttonId: "btn_advisor", buttonText: "👨‍💻 Asesor Directo" },
@@ -1510,7 +1513,7 @@ function buildProButtonResponse(
 
   if (action === "btn_chatbot" || detectedService === "Chatbot IA 24/7") {
     return {
-      reply: `🤖 *Chatbots & Automatización IA 24/7 — Digital MYK Lab*\n\nAutomatiza tu WhatsApp para atender y vender 24/7:\n\n✅ *Atención Inmediata (< 1 min):* Interactúa con botones y opciones por número\n✅ *Calificación & CRM Automático:* Registra clientes, servicio y etapa en tiempo real\n✅ *Agendamiento & Pagos:* Reconoce comprobantes (Yape, Plin, bancos) y coordina el cierre\n✅ *Despliegue en GitHub + Render* sin límites de chats\n\n💰 *Planes Accesibles (Pago único):*\n• *Plan Emprendedor IA 24/7:* *S/ 350*\n• *Plan Empresarial IA + CRM PRO:* *S/ 550*\n🎁 _Tip:_ Por *S/ 390* incluye también tu *Web Profesional GRATIS*.\n\n👇 *Paso siguiente — toca un botón o escribe el número:*\n1️⃣ Iniciar / Ver Medios de Pago\n2️⃣ Ver Oferta IA + Web (S/ 390)\n3️⃣ Consultar con Asesor Directo`,
+      reply: `🤖 *Chatbots & Automatización IA 24/7 — Digital MYK Lab*\n\nAutomatiza tu WhatsApp para atender y vender 24/7:\n\n✅ *Atención Inmediata (< 1 min):* Menús interactivos guiados por número\n✅ *Calificación & CRM Automático:* Registra clientes, servicio y etapa en tiempo real\n✅ *Agendamiento & Pagos:* Reconoce comprobantes (Yape, Plin, bancos) y coordina el cierre\n✅ *Servidor Cloud Activo 24/7* sin límites de chats\n\n💰 *Planes Accesibles (Pago único):*\n• *Plan Emprendedor IA 24/7:* *S/ 350*\n• *Plan Empresarial IA + CRM PRO:* *S/ 550*\n🎁 _Tip:_ Por *S/ 390* incluye también tu *Web Profesional GRATIS*.\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Iniciar / Ver Medios de Pago\n2️⃣ Ver Oferta IA + Web (S/ 390)\n3️⃣ Consultar con Asesor Directo`,
       buttons: [
         { buttonId: "btn_pay", buttonText: "💳 Cuentas / Yape" },
         { buttonId: "btn_combo", buttonText: "🎁 Oferta IA + Web" },
@@ -1522,7 +1525,7 @@ function buildProButtonResponse(
 
   if (action === "btn_app" || detectedService === "App a la Medida") {
     return {
-      reply: `📱 *Aplicaciones a la Medida — Digital MYK Lab*\n\nConstruimos la aplicación web o móvil que tu negocio necesita:\n\n✅ *Panel de Ventas y Reportes Diarios* en tiempo real\n✅ *Gestión de Productos, Pedidos, Catálogo, Inventario y Clientes*\n✅ *Arquitectura Segura, Rápida y Escalable* en *GitHub + Render*\n✅ *Asesoría Gratuita, Entrega Puntual y Soporte Continuo*\n\n💰 *Inversión Accesible:*\n• *App Gestión Comercial PRO:* *S/ 750*\n• *App Empresarial Multi-Usuario:* *S/ 1,250*\n\n👇 *Paso siguiente — toca un botón o escribe el número:*\n1️⃣ Iniciar / Ver Medios de Pago\n2️⃣ Ver Otros Servicios\n3️⃣ Hablar con Asesor Directo`,
+      reply: `📱 *Aplicaciones a la Medida — Digital MYK Lab*\n\nConstruimos la aplicación web o móvil que tu negocio necesita:\n\n✅ *Panel de Ventas y Reportes Diarios* en tiempo real\n✅ *Gestión de Productos, Pedidos, Catálogo, Inventario y Clientes*\n✅ *Arquitectura Cloud Segura, Rápida y Escalable*\n✅ *Asesoría Gratuita, Entrega Puntual y Soporte Continuo*\n\n💰 *Inversión Accesible:*\n• *App Gestión Comercial PRO:* *S/ 750*\n• *App Empresarial Multi-Usuario:* *S/ 1,250*\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Iniciar / Ver Medios de Pago\n2️⃣ Ver Otros Servicios\n3️⃣ Hablar con Asesor Directo`,
       buttons: [
         { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
         { buttonId: "btn_services", buttonText: "💼 Otros Servicios" },
@@ -1534,7 +1537,7 @@ function buildProButtonResponse(
 
   if (action === "btn_web" || detectedService === "Web Profesional PRO") {
     return {
-      reply: `🌐 *Web Profesional PRO — Digital MYK Lab*\n\nPáginas ultrarrápidas diseñadas para convertir visitas en clientes:\n\n✅ *Velocidad Cloud:* Despliegue moderno en *GitHub + Render*\n✅ *Máxima Seguridad:* Certificado SSL (candado 🔒) 100% incluido\n✅ *SEO de Alto Impacto:* Optimizada para posicionar en Google 📈\n✅ *Conversión Directa:* Conectada a tu WhatsApp + catálogo\n\n💰 *Precios Accesibles (Pago único):*\n• *Landing Page PRO:* *S/ 290*\n• *Web Corporativa / Catálogo PRO:* *S/ 450*\n_(Consultar adicional por dominio propio .com/.pe o hosting dedicado externo)_\n\n🔗 Oficial: https://digitalmyklab.onrender.com/\n\n👇 *Paso siguiente — toca un botón o escribe el número:*\n1️⃣ Ver Plan IA + Web GRATIS (S/ 390)\n2️⃣ Ver Cuentas / Pagar Ahora\n3️⃣ Hablar con Asesor Directo`,
+      reply: `🌐 *Web Profesional PRO — Digital MYK Lab*\n\nPáginas ultrarrápidas diseñadas para convertir visitas en clientes:\n\n✅ *Velocidad Cloud:* Servidores de alto rendimiento y carga en milisegundos\n✅ *Máxima Seguridad:* Certificado SSL (candado 🔒) 100% incluido\n✅ *SEO de Alto Impacto:* Optimizada para posicionar en Google 📈\n✅ *Conversión Directa:* Conectada a tu WhatsApp + catálogo\n\n💰 *Precios Accesibles (Pago único):*\n• *Landing Page PRO:* *S/ 290*\n• *Web Corporativa / Catálogo PRO:* *S/ 450*\n_(Consultar adicional por dominio propio .com/.pe o hosting dedicado externo)_\n\n🔗 Oficial: https://digitalmyklab.onrender.com/\n\n👇 *Paso siguiente — responde con el número (1, 2 o 3):*\n1️⃣ Ver Plan IA + Web GRATIS (S/ 390)\n2️⃣ Ver Cuentas / Pagar Ahora\n3️⃣ Hablar con Asesor Directo`,
       buttons: [
         { buttonId: "btn_combo", buttonText: "🎁 Plan IA + Web S/390" },
         { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
@@ -1552,7 +1555,7 @@ function buildProButtonResponse(
     { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" }
   ];
   return {
-    reply: `Hola${greetingName}, bienvenido a *Digital MYK Lab* — _Seguridad y Garantía_ 🛡️\n\nTe guiamos paso a paso para impulsar tu negocio:\n\n1️⃣ *Chatbots IA 24/7, Webs PRO y Apps* _(desde S/ 290 • GitHub + Render)_\n2️⃣ *Crecimiento Redes Sociales* _(desde S/ 10 • TikTok, IG, FB, YouTube)_\n3️⃣ *Oferta Estrella: Asistente IA + Web GRATIS* _(*S/ 390*)_\n4️⃣ *Medios de Pago Oficiales* _(Yape, Plin, BN, Scotiabank)_\n\n👇 *Toca un botón o responde con el número (1, 2, 3 o 4):*`,
+    reply: `Hola${greetingName}, bienvenido a *Digital MYK Lab* — _Seguridad y Garantía_ 🛡️\n\nTe guiamos paso a paso para impulsar tu negocio:\n\n1️⃣ *Chatbots IA 24/7, Webs PRO y Apps* _(desde S/ 290 • Cloud + SSL)_\n2️⃣ *Crecimiento Redes Sociales* _(desde S/ 10 • TikTok, IG, FB, YouTube)_\n3️⃣ *Oferta Estrella: Asistente IA + Web GRATIS* _(*S/ 390*)_\n4️⃣ *Medios de Pago Oficiales* _(Yape, Plin, BN, Scotiabank)_\n\n👇 *Responde con el número (1, 2, 3 o 4) para continuar:*`,
     buttons: defaultNumberMap.slice(0, 3),
     numberMap: defaultNumberMap
   };
@@ -1567,7 +1570,7 @@ async function sendSalesToSingleChatId(
 ): Promise<{ status: string; httpStatus?: number; data: any; mode: 'poll_and_text' | 'buttons' | 'text_fallback'; errorDetail?: string; usedChatId: string }> {
   const cleanHeader = (header || "").trim().slice(0, 60);
   const cleanFooter = (footer || "").trim().slice(0, 60);
-  const replyMode = salesGreenApiConfig.replyMode || 'poll_and_text';
+  const replyMode = salesGreenApiConfig.replyMode || 'text_only';
   const headerPrefix = cleanHeader ? `*${cleanHeader}*\n\n` : "";
 
   const textUrl = getGreenApiUrl(
@@ -1708,8 +1711,9 @@ async function sendSalesToSingleChatId(
   }
 
   // Mode 3 (text_only) or fallback to formatted text with numbered quick options
-  const buttonsText = cleanButtons.length > 0
-    ? `\n\n📌 *Opciones rápidas (responde con el texto o número):*\n${cleanButtons.map((b, i) => `${i + 1}️⃣ ${b.buttonText}`).join("\n")}`
+  const alreadyHasNumberedMenu = body.includes("1️⃣");
+  const buttonsText = !alreadyHasNumberedMenu && cleanButtons.length > 0
+    ? `\n\n👇 *Responde con el número (1, 2 o 3):*\n${cleanButtons.map((b, i) => `${i + 1}️⃣ ${b.buttonText}`).join("\n")}`
     : "";
   const sendRes = await fetch(textUrl, {
     method: "POST",
@@ -1855,14 +1859,14 @@ async function processDigitalMykSalesMessage(
 
     const salesPrompt = `Eres el Asesor Comercial Ejecutivo de "Digital MYK Lab" (Slogan: "Seguridad y Garantía | Innova. Automatiza. Convierte.").
 Canal oficial WhatsApp: +51 929 327 654 | Web Oficial: https://digitalmyklab.onrender.com/ | Correo: compumasster@gmail.com
-Desplegamos nuestros proyectos en infraestructura moderna *GitHub + Render* (con Certificado SSL incluido, alta velocidad y soporte continuo).
+Desplegamos nuestros proyectos en servidores cloud de alto rendimiento con Certificado SSL incluido, carga ultrarrápida y soporte continuo.
 
-PORTAFOLIO OFICIAL Y PRECIOS ACCESIBLES (TONO 100% SERIO Y CORPORATIVO — NUNCA USES LA PALABRA "DEMO" NI MENCIONES MÁRGENES INTERNOS):
+PORTAFOLIO OFICIAL Y PRECIOS ACCESIBLES (TONO 100% SERIO Y CORPORATIVO — NUNCA USES LA PALABRA "DEMO", NUNCA MENCIONES MÁRGENES INTERNOS Y NUNCA MENCIONES "GITHUB" NI "RENDER"):
 A) SOLUCIONES TECNOLÓGICAS (PAGO ÚNICO DE IMPLEMENTACIÓN EN SOLES):
 1. Chatbots & Automatización IA 24/7:
-   - Plan Emprendedor IA 24/7: *S/ 350* (atención < 1 min 24/7, botones/números interactivos, captura en CRM).
+   - Plan Emprendedor IA 24/7: *S/ 350* (atención < 1 min 24/7, menú interactivo por números, captura en CRM).
    - Plan Empresarial IA + CRM PRO: *S/ 550* (IA personalizada + agenda automática + tablero Kanban + lectura de comprobantes).
-2. Páginas Web Profesionales PRO (GitHub + Render + SSL + SEO Google):
+2. Páginas Web Profesionales PRO (Servidores Cloud + SSL + SEO Google):
    - Landing Page PRO: *S/ 290*
    - Web Corporativa / Catálogo PRO: *S/ 450*
    _(Consultar adicional si desea dominio propio .com/.pe o servidor dedicado externo)_
@@ -1882,15 +1886,17 @@ CUENTAS OFICIALES PARA DEPÓSITOS (Titular: Maycol Castañeda):
 REGLAS ESTRICTAS:
 1. Tono ejecutivo, serio, cercano y ordenado. Guía paso a paso (servicio -> precio claro -> cuenta de pago -> activación).
 2. ${isFirstMessage ? 'Es el primer mensaje del cliente: preséntate brevemente.' : 'Ya respondiste anteriormente en este chat: NO incluyas encabezado de bienvenida ni repitas "Hola, bienvenido a Digital MYK Lab"; ve directo al punto.'}
-3. Si preguntan precios de Chatbot, Web, App o IA+Web Gratis, da los precios exactos arriba indicados en Soles y resalta que incluye despliegue moderno en GitHub + Render con SSL.
+3. Si preguntan precios de Chatbot, Web, App o IA+Web Gratis, da los precios exactos arriba indicados en Soles y resalta que incluye servidores cloud de alto rendimiento con Certificado SSL incluido (sin mencionar GitHub ni Render).
 4. Para Redes Sociales: enfatiza que desde S/ 10 pueden elegir paquete o armar un Pack Inicio combinando likes + vistas, y solicita el link del perfil o video.
 5. Si indican que ya pagaron o mencionan Yape/Plin/BN/Scotiabank, confirma el método de pago detectado y pide su dato final para activar.
-6. Al final de tu respuesta, incluye SIEMPRE estas 3 opciones numeradas exactas para que el cliente responda con botón o número:
+6. Al final de tu respuesta, incluye SIEMPRE este bloque con las 3 opciones numeradas exactas para que responda con 1, 2 o 3:
    - Si trató sobre Redes Sociales:
+     👇 *Responde con el número (1, 2 o 3):*
      1️⃣ Armar Pack / Combo S/10
      2️⃣ Pagar con Yape / Plin
      3️⃣ Ver Otras Redes
    - Si trató sobre Chatbots, Web, Apps o Info general:
+     👇 *Responde con el número (1, 2 o 3):*
      1️⃣ Ver Medios de Pago (Yape / Plin / Bancos)
      2️⃣ Ver Oferta IA + Web Gratis (S/ 390)
      3️⃣ Hablar con Asesor Directo (Maycol)
@@ -2020,7 +2026,7 @@ Mensaje actual del cliente (${session.name} - ${formattedPhone}):
         header: messageHeader,
         body: botReply,
         buttons: replyButtons,
-        replyMode: salesGreenApiConfig.replyMode || 'poll_and_text'
+        replyMode: salesGreenApiConfig.replyMode || 'text_only'
       });
       greenApiSendStatus = dispatch.status;
       addGreenApiLog({
@@ -2030,8 +2036,8 @@ Mensaje actual del cliente (${session.name} - ${formattedPhone}):
         text: botReply.slice(0, 120) + (botReply.length > 120 ? "..." : ""),
         status: dispatch.status === "sent_success"
           ? (dispatch.mode === 'poll_and_text'
-              ? '🟢 [Motor Directo] Texto + Encuesta Táctil Enviados (Sin Límites)'
-              : '🟢 [Motor Directo] Respuesta Enviada (Sin Límites)')
+              ? '🟢 [Motor Directo] Texto + Encuesta Enviados (Sin Límites)'
+              : '🟢 [Motor Directo] Menú Ejecutivo Enviado (Sin Encuesta)')
           : `🔴 [Motor Directo] ${dispatch.errorDetail || dispatch.status}`,
         details: { chatId: dispatch.usedChatId, ...dispatch.data }
       }, 'sales');
@@ -2775,6 +2781,7 @@ app.post("/api/green-api/sales/config", (req, res) => {
   }
   if (replyMode === 'poll_and_text' || replyMode === 'interactive' || replyMode === 'text_only') {
     salesGreenApiConfig.replyMode = replyMode;
+    salesGreenApiConfig.replyModeExplicit = true;
   }
   if (provider === 'baileys' || provider === 'cloud_api' || provider === 'green_api') {
     salesGreenApiConfig.provider = provider;

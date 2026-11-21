@@ -581,9 +581,9 @@ export async function sendBaileysSalesReply(params: {
 
   try {
     const alreadyHasNumberedMenu = params.body.includes("1️⃣");
-    if (params.replyMode === "text_only" || cleanButtons.length === 0) {
+    if (params.replyMode !== "poll_and_text" || cleanButtons.length === 0) {
       const buttonsText = (cleanButtons.length > 0 && !alreadyHasNumberedMenu)
-        ? `\n\n📌 *Opciones rápidas (responde con el texto o número):*\n${cleanButtons.map((b, i) => `${i + 1}️⃣ ${b.buttonText}`).join("\n")}`
+        ? `\n\n👇 *Responde con el número (1, 2 o 3):*\n${cleanButtons.map((b, i) => `${i + 1}️⃣ ${b.buttonText}`).join("\n")}`
         : "";
       const sentText = await activeSock.sendMessage(targetJid, {
         text: `${headerPrefix}${params.body}${buttonsText}`
