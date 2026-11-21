@@ -503,6 +503,28 @@ export const leadScenarios: QuickLeadScenario[] = [
     targetLine: 'sales'
   },
   {
+    id: 'sc_sales_social',
+    title: '📈 Redes Sociales (929 327 654): Catálogo TikTok / IG / FB / YT',
+    channel: 'whatsapp',
+    senderName: 'Andrea Vega',
+    senderPhone: '+51 988 456 789',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+    message: 'btn_social',
+    category: 'Crecimiento Redes Sociales',
+    targetLine: 'sales'
+  },
+  {
+    id: 'sc_sales_social_combo',
+    title: '🔥 Redes Sociales (929 327 654): Quiero 500 likes de TikTok',
+    channel: 'whatsapp',
+    senderName: 'Diego Quispe',
+    senderPhone: '+51 977 654 321',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    message: 'Hola quiero 500 likes para mi video de TikTok por favor',
+    category: 'Crecimiento Redes Sociales',
+    targetLine: 'sales'
+  },
+  {
     id: 'sc_menu',
     title: '📱 Línea Demos (986 150 562): Menú Principal',
     channel: 'whatsapp',

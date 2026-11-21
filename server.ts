@@ -840,7 +840,76 @@ const DIGITAL_MYK_PAYMENT_DETAILS = `👤 *Titular:* Maycol Castañeda
 • N° Cuenta: 8330613655
 • CCI: 00972420833061365561`;
 
+const DIGITAL_MYK_SOCIAL_CATALOG = `CATALOGO OFICIAL CRECIMIENTO REDES SOCIALES (Pedidos desde S/ 10 por transaccion; los tramos economicos de S/ 5 o S/ 6 se combinan entre si en el mismo enlace o distintos para alcanzar el minimo de S/ 10):
+
+1. TIKTOK (desde S/ 10):
+- Seguidores: 500 S/ 12 | 1K S/ 22 | 3K S/ 60 | 5K S/ 95
+- Espectadores En Vivo: 30 min S/ 35 | 1 hora S/ 65 | 1h 30m S/ 95
+- Likes (combinables desde S/ 10): 1K S/ 10 | 3K S/ 22 | 5K S/ 35 (Opcional combinar: 500 likes S/ 6)
+- Vistas (combinables desde S/ 10): 2K S/ 10 | 5K S/ 18 | 10K S/ 32 (Opcional combinar: 1K vistas S/ 6)
+- Comentarios personalizados: 100 S/ 10 | 300 S/ 22 | 500 S/ 35 | 1K S/ 65
+
+2. INSTAGRAM (desde S/ 10):
+- Seguidores: 500 S/ 12 | 1K S/ 22 | 3K S/ 60 | 5K S/ 95
+- Visualizaciones En Vivo: 500 S/ 10 | 1K S/ 16 | 3K S/ 40 | 5K S/ 65
+- Likes (combinables desde S/ 10): 2K S/ 10 | 5K S/ 22 | 10K S/ 40 (Opcional combinar: 1K likes S/ 6)
+- Vistas (combinables desde S/ 10): 2K S/ 10 | 5K S/ 18 | 10K S/ 32 (Opcional combinar: 1K vistas S/ 6)
+- Comentarios personalizados: 500 S/ 18 | 1K S/ 30 | 3K S/ 80
+
+3. FACEBOOK (desde S/ 10):
+- Seguidores: 500 S/ 12 | 1K S/ 22 | 3K S/ 60 | 5K S/ 95
+- Transmision En Vivo: 60 min S/ 45 | 10 horas S/ 95
+- Likes (combinables desde S/ 10): 1K S/ 10 | 3K S/ 25 | 5K S/ 40 (Opcional combinar: 500 likes S/ 6)
+- Comentarios personalizados: 100 S/ 10 | 300 S/ 22 | 500 S/ 35
+- Vistas (combinables desde S/ 10): 2K S/ 10 | 5K S/ 18 | 10K S/ 32 (Opcional combinar: 1K vistas S/ 6)
+
+4. YOUTUBE (desde S/ 10):
+- Suscriptores / Seguidores: 100 S/ 10 | 500 S/ 35 | 1K S/ 65
+- Comentarios aleatorios (combinables desde S/ 10): 100 S/ 10 | 500 S/ 25 | 1K S/ 45
+- Likes (combinables desde S/ 10): 300 S/ 10 | 500 S/ 14 | 1K S/ 25 (Opcional combinar: 100 likes S/ 5)
+- Visualizaciones En Vivo: 1K S/ 12 | 5K S/ 40 | 10K S/ 85
+- Vistas (combinables desde S/ 10): 300 S/ 10 | 500 S/ 14 | 1K S/ 22 (Opcional combinar: 100 vistas S/ 5)`;
+
+function isSocialMediaService(service: string): boolean {
+  return (
+    service.includes("TikTok") ||
+    service.includes("Instagram") ||
+    service.includes("Facebook") ||
+    service.includes("YouTube") ||
+    service.includes("Redes Sociales")
+  );
+}
+
 function detectDigitalMykServiceIntent(lowerText: string): string {
+  if (lowerText === "btn_tiktok" || lowerText.includes("tiktok") || lowerText.includes("tik tok")) {
+    return "Crecimiento TikTok";
+  }
+  if (lowerText === "btn_instagram" || lowerText.includes("instagram") || lowerText.includes("insta") || lowerText.includes("ig ")) {
+    return "Crecimiento Instagram";
+  }
+  if (lowerText === "btn_facebook" || lowerText.includes("facebook") || lowerText.includes("fb ")) {
+    return "Crecimiento Facebook";
+  }
+  if (lowerText === "btn_youtube" || lowerText.includes("youtube") || lowerText.includes("suscriptor") || lowerText.includes("yt ")) {
+    return "Crecimiento YouTube";
+  }
+  if (
+    lowerText === "btn_social" ||
+    lowerText === "btn_fb_yt" ||
+    lowerText === "btn_social_combo" ||
+    lowerText.includes("seguidor") ||
+    lowerText.includes("like") ||
+    lowerText.includes("vista") ||
+    lowerText.includes("reproduccion") ||
+    lowerText.includes("reproducción") ||
+    lowerText.includes("espectador") ||
+    lowerText.includes("en vivo") ||
+    lowerText.includes("comentario") ||
+    lowerText.includes("redes") ||
+    lowerText.includes("pack inicio")
+  ) {
+    return "Redes Sociales (S/ 10+)";
+  }
   if (
     lowerText === "btn_combo" ||
     lowerText.includes("gratis") ||
@@ -895,6 +964,7 @@ function getDefaultEstimatedValue(service: string): number {
   if (service === "Combo Asistente IA + Web Gratis") return 1490;
   if (service === "Chatbot IA 24/7") return 1200;
   if (service === "Web Profesional PRO") return 950;
+  if (isSocialMediaService(service)) return 22;
   return 1200;
 }
 
@@ -904,16 +974,40 @@ function detectSalesButtonAction(cleanText: string): string | null {
   if (lower === "btn_voucher" || lower.includes("ya realicé el pago") || lower.includes("ya realice el pago") || lower.includes("ya pague") || lower.includes("ya pagué") || lower.includes("comprobante") || lower.includes("voucher") || lower.includes("constancia")) {
     return "btn_voucher";
   }
-  if (lower === "btn_pay" || lower === "btn_start" || lower === "5" || lower.includes("medios de pago") || lower.includes("ver cuentas") || lower.includes("cuentas / yape") || lower.includes("yape") || lower.includes("plin") || lower.includes("scotiabank") || lower.includes("nacion") || lower.includes("nación") || lower.includes("cci") || lower.includes("deposito") || lower.includes("depósito") || lower.includes("transferencia") || lower.includes("pagar") || lower.includes("cuenta bancaria") || lower.includes("iniciar proyecto") || lower.includes("contratar plan") || lower.includes("cotizar mi app") || lower.includes("solicitar web")) {
+  if (lower === "btn_pay" || lower === "btn_start" || lower === "5" || lower.includes("medios de pago") || lower.includes("ver cuentas") || lower.includes("cuentas / yape") || lower.includes("ver yape") || lower.includes("pagar con yape") || lower.includes("yape") || lower.includes("plin") || lower.includes("scotiabank") || lower.includes("nacion") || lower.includes("nación") || lower.includes("cci") || lower.includes("deposito") || lower.includes("depósito") || lower.includes("transferencia") || lower.includes("pagar") || lower.includes("cuenta bancaria") || lower.includes("iniciar proyecto") || lower.includes("contratar plan") || lower.includes("cotizar mi app") || lower.includes("solicitar web")) {
     return "btn_pay";
   }
-  if (lower === "btn_advisor" || lower.includes("asesor directo") || lower.includes("hablar con maycol") || lower.includes("consultar asesor") || lower.includes("coordinar inicio") || lower.includes("humano")) {
+  if (lower === "btn_advisor" || lower.includes("asesor directo") || lower.includes("hablar con maycol") || lower.includes("consultar asesor") || lower.includes("coordinar inicio") || lower.includes("enviar mi link") || lower.includes("humano")) {
     return "btn_advisor";
+  }
+  if (lower === "btn_social_combo" || lower.includes("armar combo") || lower.includes("pack / combo") || lower.includes("pack inicio")) {
+    return "btn_social_combo";
+  }
+  if (lower === "btn_fb_yt" || lower.includes("fb y") || lower.includes("facebook y youtube")) {
+    return "btn_fb_yt";
+  }
+  if (lower === "btn_tiktok" || lower === "tiktok" || lower === "tik tok" || lower.includes("tiktok (desde")) {
+    return "btn_tiktok";
+  }
+  if (lower === "btn_instagram" || lower === "instagram" || lower.includes("instagram (s/10")) {
+    return "btn_instagram";
+  }
+  if (lower === "btn_facebook" || lower === "facebook" || lower.includes("facebook (s/10")) {
+    return "btn_facebook";
+  }
+  if (lower === "btn_youtube" || lower === "youtube" || lower.includes("youtube (s/10")) {
+    return "btn_youtube";
+  }
+  if (lower === "btn_social" || lower.includes("redes sociales") || lower.includes("ver otras redes") || lower.includes("catálogo redes") || lower.includes("catalogo redes") || lower === "redes" || lower === "seguidores" || lower === "likes" || lower === "vistas" || lower === "comentarios") {
+    return "btn_social";
+  }
+  if (lower === "btn_tech" || lower.includes("ia, webs y apps") || lower.includes("soluciones ia")) {
+    return "btn_tech";
   }
   if (lower === "btn_services" || lower.includes("ver servicios") || lower.includes("todos servicios") || lower.includes("portafolio")) {
     return "btn_services";
   }
-  if (lower === "btn_combo" || lower === "4" || lower.includes("ia + web gratis") || lower.includes("ver plan ia + web") || lower.includes("oferta ia + web")) {
+  if (lower === "btn_combo" || lower === "4" || lower.includes("ia + web gratis") || lower.includes("ver plan ia + web") || lower.includes("oferta ia + web") || lower.includes("plan ia + web")) {
     return "btn_combo";
   }
   if (lower === "btn_chatbot" || lower === "1" || lower.includes("chatbots ia 24/7")) {
@@ -984,13 +1078,109 @@ function buildProButtonResponse(action: string | null, cleanText: string, sender
 
   if (action === "btn_services") {
     return {
-      reply: `Nuestro portafolio oficial en *Digital MYK Lab* (_Seguridad y Garantía_) está diseñado para automatizar procesos y escalar las ventas de tu empresa.\n\nSelecciona una solución con los botones de abajo para ver el alcance detallado:`,
+      reply: `Nuestro portafolio oficial en *Digital MYK Lab* (_Seguridad y Garantía_) abarca dos grandes líneas para hacer crecer tu marca:\n\n🤖 *Soluciones Tecnológicas:* Chatbots IA 24/7, Apps a la Medida, Webs Profesionales PRO y Plan IA + Web Gratis.\n📈 *Crecimiento en Redes Sociales (desde S/ 10):* Seguidores, Likes, Vistas, Comentarios y Espectadores En Vivo para TikTok, Instagram, Facebook y YouTube.\n\nElige qué área deseas explorar:`,
+      buttons: [
+        { buttonId: "btn_tech", buttonText: "🤖 IA, Webs y Apps" },
+        { buttonId: "btn_social", buttonText: "📈 Redes Sociales S/10" },
+        { buttonId: "btn_combo", buttonText: "🎁 Plan IA + Web Gratis" }
+      ],
+      stageOverride: "💬 En Asesoría"
+    };
+  }
+
+  if (action === "btn_tech") {
+    return {
+      reply: `🤖 *Soluciones Tecnológicas Empresariales — Digital MYK Lab*\n\nAutomatizamos tus ventas y presencia digital con infraestructura cloud de alto rendimiento:\n\n1️⃣ *Chatbots IA 24/7* (WhatsApp + CRM)\n2️⃣ *Aplicaciones Móviles y Web a la Medida*\n3️⃣ *Páginas Web Profesionales PRO* (SSL + SEO)\n4️⃣ *Plan Estrella:* Asistente IA 24/7 + Web Gratis\n\nSelecciona una solución para ver detalles:`,
       buttons: [
         { buttonId: "btn_chatbot", buttonText: "🤖 Chatbots IA 24/7" },
         { buttonId: "btn_app", buttonText: "📱 App a la Medida" },
         { buttonId: "btn_web", buttonText: "🌐 Web Profesional PRO" }
       ],
       stageOverride: "💬 En Asesoría"
+    };
+  }
+
+  if (action === "btn_social") {
+    return {
+      reply: `📈 *Impulso & Crecimiento en Redes Sociales — Desde S/ 10* 🚀\n\nTrabajamos con paquetes claros desde *S/ 10* por transacción para *TikTok, Instagram, Facebook y YouTube*.\n\n💡 *Tip:* Con pedidos desde *S/ 10* puedes *armar un combo* (por ejemplo, vistas + likes en el mismo video o enlaces distintos) para lograr interacción completa.\n\nSelecciona tu red social para ver todos los paquetes:`,
+      buttons: [
+        { buttonId: "btn_tiktok", buttonText: "🎵 TikTok (desde S/10)" },
+        { buttonId: "btn_instagram", buttonText: "📸 Instagram (S/10+)" },
+        { buttonId: "btn_fb_yt", buttonText: "📘 FB y 🔴 YouTube" }
+      ],
+      stageOverride: "💬 En Asesoría"
+    };
+  }
+
+  if (action === "btn_fb_yt") {
+    return {
+      reply: `📘 *Facebook* & 🔴 *YouTube* — Paquetes desde *S/ 10*\n\nElige la plataforma que deseas potenciar o arma tu combo personalizado desde S/ 10:`,
+      buttons: [
+        { buttonId: "btn_facebook", buttonText: "📘 Facebook (S/10+)" },
+        { buttonId: "btn_youtube", buttonText: "🔴 YouTube (S/10+)" },
+        { buttonId: "btn_social_combo", buttonText: "🔥 Armar Combo S/10" }
+      ],
+      stageOverride: "💬 En Asesoría"
+    };
+  }
+
+  if (action === "btn_tiktok") {
+    return {
+      reply: `📱 *1. TikTok — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:*\n• 500 — *S/ 12*  |  1K — *S/ 22*\n• 3K — *S/ 60*   |  5K — *S/ 95*\n\n📺 *Espectadores En Vivo:*\n• 30 min — *S/ 35*  |  1 hora — *S/ 65*  |  1h 30m — *S/ 95*\n\n❤️ *Likes* _(combinables desde S/ 10)_:\n• 1K — *S/ 10*  |  3K — *S/ 22*  |  5K — *S/ 35*\n• _Para combinar: 500 likes a S/ 6_\n\n👁️ *Vistas* _(combinables desde S/ 10)_:\n• 2K — *S/ 10*  |  5K — *S/ 18*  |  10K — *S/ 32*\n• _Para combinar: 1K vistas a S/ 6_\n\n💬 *Comentarios personalizados:*\n• 100 — *S/ 10* | 300 — *S/ 22* | 500 — *S/ 35* | 1K — *S/ 65*\n\n👇 Elige cómo continuar:`,
+      buttons: [
+        { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
+        { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
+        { buttonId: "btn_social", buttonText: "📲 Ver Otras Redes" }
+      ],
+      stageOverride: "📄 Cotizado"
+    };
+  }
+
+  if (action === "btn_instagram") {
+    return {
+      reply: `📸 *2. Instagram — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:*\n• 500 — *S/ 12*  |  1K — *S/ 22*\n• 3K — *S/ 60*   |  5K — *S/ 95*\n\n📺 *Visualizaciones En Vivo:*\n• 500 — *S/ 10* | 1K — *S/ 16* | 3K — *S/ 40* | 5K — *S/ 65*\n\n❤️ *Likes* _(combinables desde S/ 10)_:\n• 2K — *S/ 10*  |  5K — *S/ 22*  |  10K — *S/ 40*\n• _Para combinar: 1K likes a S/ 6_\n\n👁️ *Vistas* _(combinables desde S/ 10)_:\n• 2K — *S/ 10*  |  5K — *S/ 18*  |  10K — *S/ 32*\n• _Para combinar: 1K vistas a S/ 6_\n\n💬 *Comentarios personalizados:*\n• 500 — *S/ 18* | 1K — *S/ 30* | 3K — *S/ 80*\n\n👇 Elige cómo continuar:`,
+      buttons: [
+        { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
+        { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
+        { buttonId: "btn_social", buttonText: "📲 Ver Otras Redes" }
+      ],
+      stageOverride: "📄 Cotizado"
+    };
+  }
+
+  if (action === "btn_facebook") {
+    return {
+      reply: `📘 *3. Facebook — Catálogo Oficial (desde S/ 10)*\n\n👥 *Seguidores:*\n• 500 — *S/ 12*  |  1K — *S/ 22*\n• 3K — *S/ 60*   |  5K — *S/ 95*\n\n📺 *Transmisión En Vivo:*\n• 60 minutos — *S/ 45*  |  10 horas — *S/ 95*\n\n👍 *Likes* _(combinables desde S/ 10)_:\n• 1K — *S/ 10*  |  3K — *S/ 25*  |  5K — *S/ 40*\n• _Para combinar: 500 likes a S/ 6_\n\n👁️ *Vistas* _(combinables desde S/ 10)_:\n• 2K — *S/ 10*  |  5K — *S/ 18*  |  10K — *S/ 32*\n• _Para combinar: 1K vistas a S/ 6_\n\n💬 *Comentarios personalizados:*\n• 100 — *S/ 10* | 300 — *S/ 22* | 500 — *S/ 35*\n\n👇 Elige cómo continuar:`,
+      buttons: [
+        { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
+        { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
+        { buttonId: "btn_social", buttonText: "📲 Ver Otras Redes" }
+      ],
+      stageOverride: "📄 Cotizado"
+    };
+  }
+
+  if (action === "btn_youtube") {
+    return {
+      reply: `🔴 *4. YouTube — Catálogo Oficial (desde S/ 10)*\n\n🔔 *Suscriptores / Seguidores:*\n• 100 — *S/ 10*  |  500 — *S/ 35*  |  1K — *S/ 65*\n\n💬 *Comentarios aleatorios* _(combinables desde S/ 10)_:\n• 100 — *S/ 10*  |  500 — *S/ 25*  |  1K — *S/ 45*\n\n👍 *Likes* _(combinables desde S/ 10)_:\n• 300 — *S/ 10* | 500 — *S/ 14* | 1K — *S/ 25*\n• _Para combinar: 100 likes a S/ 5_\n\n📺 *Visualizaciones En Vivo:*\n• 1K — *S/ 12*  |  5K — *S/ 40*  |  10K — *S/ 85*\n\n👁️ *Vistas* _(combinables desde S/ 10)_:\n• 300 — *S/ 10* | 500 — *S/ 14* | 1K — *S/ 22*\n• _Para combinar: 100 vistas a S/ 5_\n\n👇 Elige cómo continuar:`,
+      buttons: [
+        { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
+        { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
+        { buttonId: "btn_social", buttonText: "📲 Ver Otras Redes" }
+      ],
+      stageOverride: "📄 Cotizado"
+    };
+  }
+
+  if (action === "btn_social_combo") {
+    return {
+      reply: `🔥 *Armar Combo / Pack Inicio (desde S/ 10)*\n\nCon pedidos desde *S/ 10* puedes combinar dos o más servicios (en el mismo enlace o distintos) para que tu publicación tenga interacción completa:\n\n✨ *Ejemplos de Combos Listos:*\n• *YouTube Pack S/ 10:* 100 Likes (S/ 5) + 100 Vistas (S/ 5) = *S/ 10*\n• *TikTok / IG / FB Mix S/ 12:* 500 Likes (S/ 6) + 1K Vistas (S/ 6) = *S/ 12*\n• *Cualquier Paquete Directo:* desde *S/ 10* en adelante.\n\n📲 Escríbenos el *paquete que deseas + el enlace (link)* de tu perfil o video, o presiona *Ver Yape / Cuentas* para activarlo hoy mismo:`,
+      buttons: [
+        { buttonId: "btn_pay", buttonText: "💳 Ver Yape / Cuentas" },
+        { buttonId: "btn_advisor", buttonText: "👨‍💻 Enviar Mi Link" },
+        { buttonId: "btn_social", buttonText: "📲 Ver Catálogo Redes" }
+      ],
+      stageOverride: "📄 Cotizado"
     };
   }
 
@@ -1044,10 +1234,10 @@ function buildProButtonResponse(action: string | null, cleanText: string, sender
 
   // Default welcome / immediate reply to ANY word
   return {
-    reply: `Hola${greetingName}, bienvenido a *Digital MYK Lab* — _Seguridad y Garantía_ 🛡️\n\nSomos especialistas en soluciones tecnológicas empresariales para automatizar ventas y potenciar marcas:\n\n🤖 *Chatbots & Asistentes IA 24/7*\n📱 *Aplicaciones Móviles y Web a la Medida*\n🌐 *Páginas Web Profesionales (SSL + SEO)*\n🎁 *Plan Estrella: Asistente IA 24/7 + Web Profesional GRATIS*\n\nPara facilitar tu atención, solo presiona uno de los botones de abajo 👇:`,
+    reply: `Hola${greetingName}, bienvenido a *Digital MYK Lab* — _Seguridad y Garantía_ 🛡️\n\nImpulsamos tu marca con soluciones digitales completas:\n\n🤖 *Chatbots IA 24/7, Apps a la Medida & Webs PRO*\n🎁 *Plan Integral: Asistente IA 24/7 + Web Profesional GRATIS*\n📈 *Crecimiento Redes Sociales (desde S/ 10):* Seguidores, Likes, Vistas, Comentarios y En Vivo (TikTok, Instagram, Facebook y YouTube)\n\nPresiona un botón para responder de forma rápida 👇:`,
     buttons: [
-      { buttonId: "btn_services", buttonText: "💼 Ver Servicios" },
-      { buttonId: "btn_combo", buttonText: "🎁 IA + Web Gratis" },
+      { buttonId: "btn_tech", buttonText: "🤖 IA, Webs y Apps" },
+      { buttonId: "btn_social", buttonText: "📈 Redes Sociales S/10" },
       { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" }
     ]
   };
@@ -1174,10 +1364,13 @@ async function processDigitalMykSalesMessage(phone: string, senderName: string, 
 Canal oficial WhatsApp: +51 929 327 654 | Web Oficial: https://digitalmyklab.onrender.com/ | Correo: compumasster@gmail.com
 
 PORTAFOLIO OFICIAL (TONO 100% SERIO Y CORPORATIVO — NUNCA USES LA PALABRA "DEMO"):
+A) SOLUCIONES TECNOLÓGICAS:
 1. Chatbots & Automatización IA 24/7: Atención en < 1 minuto, calificación de leads, agendamiento automático y sincronización con CRM / Google Sheets.
 2. Aplicaciones Móviles y Web a la Medida: Panel de ventas, catálogo, pedidos, clientes y reportes en tiempo real. Seguras, rápidas y escalables.
 3. Páginas Web Profesionales PRO: Infraestructura cloud de alto rendimiento, SSL incluido, SEO para Google y enlace directo a WhatsApp.
 4. Plan Integral: Asistente IA 24/7 + Sitio Web Profesional GRATIS (consultar dominio/hosting externos), 99.9% Uptime y soporte 24/7/365.
+
+B) ${DIGITAL_MYK_SOCIAL_CATALOG}
 
 CUENTAS OFICIALES PARA DEPÓSITOS (Titular: Maycol Castañeda):
 - Yape: 929327654
@@ -1186,11 +1379,12 @@ CUENTAS OFICIALES PARA DEPÓSITOS (Titular: Maycol Castañeda):
 - Scotiabank (Cuenta Ahorro Soles): Cuenta 8330613655 | CCI 00972420833061365561
 
 REGLAS ESTRICTAS:
-1. Tono ejecutivo, serio, confiable y orientado a cierre B2B. Prohibido decir "demo" o "prueba gratuita de juguete".
-2. Si el cliente pregunta por cuentas, Yape, Plin, bancos o cómo iniciar/pagar, entrega las cuentas oficiales completas a nombre de Maycol Castañeda.
-3. Mantén la respuesta clara para WhatsApp (máximo 8-10 líneas) e indica que puede usar los botones interactivos de abajo.
-4. Agrega al final en línea oculta:
-[SALES_LEAD: {"clientName":"${session.name}", "serviceInterest":"...", "businessType":"...", "stage":"💬 En Asesoría" | "📄 Cotizado" | "💳 Pago / Cierre"}]
+1. Tono ejecutivo, serio, confiable y amable. Prohibido decir "demo" o hablar de márgenes internos del negocio.
+2. Para Redes Sociales: enfatiza el beneficio ("Con pedidos desde S/ 10 puedes armar tu Pack Inicio combinando vistas + likes en el mismo video o distintos enlaces para lograr interacción completa"). Si pide menos de S/ 10 (ej. solo 500 likes a S/ 6), ofrécele amablemente armar un "Pack Inicio de S/ 10+" combinando 2 servicios (sin sonar restrictivo) y solicita su enlace (link) del perfil o video.
+3. Si pregunta por cuentas, Yape, Plin o bancos, entrega las cuentas oficiales completas a nombre de Maycol Castañeda.
+4. Mantén la respuesta clara para WhatsApp (máximo 10 líneas) e indica que puede responder con los botones de abajo.
+5. Agrega al final en línea oculta:
+[SALES_LEAD: {"clientName":"${session.name}", "serviceInterest":"...", "businessType":"...", "estimatedValue":${getDefaultEstimatedValue(detectedService)}, "stage":"💬 En Asesoría" | "📄 Cotizado" | "💳 Pago / Cierre"}]
 
 Historial reciente:
 ${historyText || "(Primera interacción)"}
@@ -1208,11 +1402,17 @@ Mensaje actual del cliente (${session.name} - ${formattedPhone}):
         rawAiReply = rawAiReply.replace(/\[SALES_LEAD:\s*\{.*?\}\]/gs, "").trim();
       }
       botReply = rawAiReply;
-      replyButtons = [
-        { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
-        { buttonId: "btn_combo", buttonText: "🎁 Oferta IA + Web" },
-        { buttonId: "btn_advisor", buttonText: "👨‍💻 Asesor Directo" }
-      ];
+      replyButtons = isSocialMediaService(capturedLeadData?.serviceInterest || detectedService)
+        ? [
+            { buttonId: "btn_social_combo", buttonText: "🔥 Pack / Combo S/10" },
+            { buttonId: "btn_pay", buttonText: "💳 Pagar con Yape/Plin" },
+            { buttonId: "btn_social", buttonText: "📲 Ver Otras Redes" }
+          ]
+        : [
+            { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
+            { buttonId: "btn_combo", buttonText: "🎁 Oferta IA + Web" },
+            { buttonId: "btn_advisor", buttonText: "👨‍💻 Asesor Directo" }
+          ];
     }
   }
 
@@ -1254,7 +1454,7 @@ Mensaje actual del cliente (${session.name} - ${formattedPhone}):
     businessType: businessToSave,
     lastMessage: cleanText.slice(0, 140),
     status: statusToSave,
-    estimatedValue: existingLead?.estimatedValue || getDefaultEstimatedValue(serviceToSave),
+    estimatedValue: Number(capturedLeadData?.estimatedValue) || existingLead?.estimatedValue || getDefaultEstimatedValue(serviceToSave),
     paymentMethod: structuredResponse.paymentMethodOverride || existingLead?.paymentMethod || "Por definir",
     paymentStatus: structuredResponse.paymentStatusOverride || existingLead?.paymentStatus || "Pendiente",
     priority: statusToSave === "💳 Pago / Cierre" || statusToSave === "📄 Cotizado" ? "Alta" : (existingLead?.priority || "Media"),

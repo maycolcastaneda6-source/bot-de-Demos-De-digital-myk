@@ -22,9 +22,266 @@ import {
   Building2,
   Eye,
   BadgeCheck,
-  Filter
+  Filter,
+  ShoppingBag,
+  Trash2,
+  Sparkles
 } from 'lucide-react';
 import { GreenApiConfig, SalesLead, SalesLeadStage } from '../types';
+
+type SocialPlatformKey = 'tiktok' | 'instagram' | 'facebook' | 'youtube';
+
+interface SocialTier {
+  id: string;
+  label: string;
+  price: number;
+  combinable?: boolean;
+}
+
+interface SocialCategory {
+  name: string;
+  combinableNote?: string;
+  tiers: SocialTier[];
+}
+
+interface SocialPlatformCatalog {
+  key: SocialPlatformKey;
+  label: string;
+  emoji: string;
+  serviceName: string;
+  accentClass: string;
+  categories: SocialCategory[];
+}
+
+const SOCIAL_CATALOG: SocialPlatformCatalog[] = [
+  {
+    key: 'tiktok',
+    label: 'TikTok',
+    emoji: '🎵',
+    serviceName: 'Crecimiento TikTok',
+    accentClass: 'border-cyan-500/40 text-cyan-300',
+    categories: [
+      {
+        name: 'Seguidores',
+        tiers: [
+          { id: 'tt_seg_500', label: '500 Seguidores', price: 12 },
+          { id: 'tt_seg_1k', label: '1K Seguidores', price: 22 },
+          { id: 'tt_seg_3k', label: '3K Seguidores', price: 60 },
+          { id: 'tt_seg_5k', label: '5K Seguidores', price: 95 }
+        ]
+      },
+      {
+        name: 'Espectadores En Vivo',
+        tiers: [
+          { id: 'tt_live_30m', label: '30 minutos', price: 35 },
+          { id: 'tt_live_1h', label: '1 hora', price: 65 },
+          { id: 'tt_live_1h30', label: '1 hr 30 min', price: 95 }
+        ]
+      },
+      {
+        name: 'Likes',
+        combinableNote: 'Combinables desde S/ 10',
+        tiers: [
+          { id: 'tt_likes_500', label: '500 Likes (Combinar)', price: 6, combinable: true },
+          { id: 'tt_likes_1k', label: '1K Likes', price: 10 },
+          { id: 'tt_likes_3k', label: '3K Likes', price: 22 },
+          { id: 'tt_likes_5k', label: '5K Likes', price: 35 }
+        ]
+      },
+      {
+        name: 'Vistas',
+        combinableNote: 'Combinables desde S/ 10',
+        tiers: [
+          { id: 'tt_views_1k', label: '1K Vistas (Combinar)', price: 6, combinable: true },
+          { id: 'tt_views_2k', label: '2K Vistas', price: 10 },
+          { id: 'tt_views_5k', label: '5K Vistas', price: 18 },
+          { id: 'tt_views_10k', label: '10K Vistas', price: 32 }
+        ]
+      },
+      {
+        name: 'Comentarios Personalizados',
+        tiers: [
+          { id: 'tt_com_100', label: '100 Comentarios', price: 10 },
+          { id: 'tt_com_300', label: '300 Comentarios', price: 22 },
+          { id: 'tt_com_500', label: '500 Comentarios', price: 35 },
+          { id: 'tt_com_1k', label: '1K Comentarios', price: 65 }
+        ]
+      }
+    ]
+  },
+  {
+    key: 'instagram',
+    label: 'Instagram',
+    emoji: '📸',
+    serviceName: 'Crecimiento Instagram',
+    accentClass: 'border-pink-500/40 text-pink-300',
+    categories: [
+      {
+        name: 'Seguidores',
+        tiers: [
+          { id: 'ig_seg_500', label: '500 Seguidores', price: 12 },
+          { id: 'ig_seg_1k', label: '1K Seguidores', price: 22 },
+          { id: 'ig_seg_3k', label: '3K Seguidores', price: 60 },
+          { id: 'ig_seg_5k', label: '5K Seguidores', price: 95 }
+        ]
+      },
+      {
+        name: 'Visualizaciones En Vivo',
+        tiers: [
+          { id: 'ig_live_500', label: '500 En Vivo', price: 10 },
+          { id: 'ig_live_1k', label: '1K En Vivo', price: 16 },
+          { id: 'ig_live_3k', label: '3K En Vivo', price: 40 },
+          { id: 'ig_live_5k', label: '5K En Vivo', price: 65 }
+        ]
+      },
+      {
+        name: 'Likes',
+        combinableNote: 'Combinables desde S/ 10',
+        tiers: [
+          { id: 'ig_likes_1k', label: '1K Likes (Combinar)', price: 6, combinable: true },
+          { id: 'ig_likes_2k', label: '2K Likes', price: 10 },
+          { id: 'ig_likes_5k', label: '5K Likes', price: 22 },
+          { id: 'ig_likes_10k', label: '10K Likes', price: 40 }
+        ]
+      },
+      {
+        name: 'Vistas',
+        combinableNote: 'Combinables desde S/ 10',
+        tiers: [
+          { id: 'ig_views_1k', label: '1K Vistas (Combinar)', price: 6, combinable: true },
+          { id: 'ig_views_2k', label: '2K Vistas', price: 10 },
+          { id: 'ig_views_5k', label: '5K Vistas', price: 18 },
+          { id: 'ig_views_10k', label: '10K Vistas', price: 32 }
+        ]
+      },
+      {
+        name: 'Comentarios Personalizados',
+        tiers: [
+          { id: 'ig_com_500', label: '500 Comentarios', price: 18 },
+          { id: 'ig_com_1k', label: '1K Comentarios', price: 30 },
+          { id: 'ig_com_3k', label: '3K Comentarios', price: 80 }
+        ]
+      }
+    ]
+  },
+  {
+    key: 'facebook',
+    label: 'Facebook',
+    emoji: '📘',
+    serviceName: 'Crecimiento Facebook',
+    accentClass: 'border-blue-500/40 text-blue-300',
+    categories: [
+      {
+        name: 'Seguidores',
+        tiers: [
+          { id: 'fb_seg_500', label: '500 Seguidores', price: 12 },
+          { id: 'fb_seg_1k', label: '1K Seguidores', price: 22 },
+          { id: 'fb_seg_3k', label: '3K Seguidores', price: 60 },
+          { id: 'fb_seg_5k', label: '5K Seguidores', price: 95 }
+        ]
+      },
+      {
+        name: 'Transmisión En Vivo',
+        tiers: [
+          { id: 'fb_live_60m', label: '60 minutos', price: 45 },
+          { id: 'fb_live_10h', label: '10 horas', price: 95 }
+        ]
+      },
+      {
+        name: 'Likes',
+        combinableNote: 'Combinables desde S/ 10',
+        tiers: [
+          { id: 'fb_likes_500', label: '500 Likes (Combinar)', price: 6, combinable: true },
+          { id: 'fb_likes_1k', label: '1K Likes', price: 10 },
+          { id: 'fb_likes_3k', label: '3K Likes', price: 25 },
+          { id: 'fb_likes_5k', label: '5K Likes', price: 40 }
+        ]
+      },
+      {
+        name: 'Comentarios Personalizados',
+        tiers: [
+          { id: 'fb_com_100', label: '100 Comentarios', price: 10 },
+          { id: 'fb_com_300', label: '300 Comentarios', price: 22 },
+          { id: 'fb_com_500', label: '500 Comentarios', price: 35 }
+        ]
+      },
+      {
+        name: 'Vistas',
+        combinableNote: 'Combinables desde S/ 10',
+        tiers: [
+          { id: 'fb_views_1k', label: '1K Vistas (Combinar)', price: 6, combinable: true },
+          { id: 'fb_views_2k', label: '2K Vistas', price: 10 },
+          { id: 'fb_views_5k', label: '5K Vistas', price: 18 },
+          { id: 'fb_views_10k', label: '10K Vistas', price: 32 }
+        ]
+      }
+    ]
+  },
+  {
+    key: 'youtube',
+    label: 'YouTube',
+    emoji: '🔴',
+    serviceName: 'Crecimiento YouTube',
+    accentClass: 'border-red-500/40 text-red-300',
+    categories: [
+      {
+        name: 'Suscriptores / Seguidores',
+        tiers: [
+          { id: 'yt_sub_100', label: '100 Suscriptores', price: 10 },
+          { id: 'yt_sub_500', label: '500 Suscriptores', price: 35 },
+          { id: 'yt_sub_1k', label: '1K Suscriptores', price: 65 }
+        ]
+      },
+      {
+        name: 'Comentarios Aleatorios',
+        combinableNote: 'Combinables desde S/ 10',
+        tiers: [
+          { id: 'yt_com_100', label: '100 Comentarios', price: 10 },
+          { id: 'yt_com_500', label: '500 Comentarios', price: 25 },
+          { id: 'yt_com_1k', label: '1K Comentarios', price: 45 }
+        ]
+      },
+      {
+        name: 'Likes',
+        combinableNote: 'Combinables desde S/ 10',
+        tiers: [
+          { id: 'yt_likes_100', label: '100 Likes (Combinar)', price: 5, combinable: true },
+          { id: 'yt_likes_300', label: '300 Likes', price: 10 },
+          { id: 'yt_likes_500', label: '500 Likes', price: 14 },
+          { id: 'yt_likes_1k', label: '1K Likes', price: 25 }
+        ]
+      },
+      {
+        name: 'Visualizaciones En Vivo',
+        tiers: [
+          { id: 'yt_live_1k', label: '1K En Vivo', price: 12 },
+          { id: 'yt_live_5k', label: '5K En Vivo', price: 40 },
+          { id: 'yt_live_10k', label: '10K En Vivo', price: 85 }
+        ]
+      },
+      {
+        name: 'Vistas',
+        combinableNote: 'Combinables desde S/ 10',
+        tiers: [
+          { id: 'yt_views_100', label: '100 Vistas (Combinar)', price: 5, combinable: true },
+          { id: 'yt_views_300', label: '300 Vistas', price: 10 },
+          { id: 'yt_views_500', label: '500 Vistas', price: 14 },
+          { id: 'yt_views_1k', label: '1K Vistas', price: 22 }
+        ]
+      }
+    ]
+  }
+];
+
+interface ComboCartItem {
+  id: string;
+  platform: string;
+  serviceName: string;
+  category: string;
+  label: string;
+  price: number;
+  qty: number;
+}
 
 interface DigitalMykCrmViewProps {
   salesLeads: SalesLead[];
@@ -51,6 +308,10 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
   const [salesStageFilter, setSalesStageFilter] = useState<string>('ALL');
   const [selectedSalesLeadId, setSelectedSalesLeadId] = useState<string | null>(null);
   const [showPaymentAccounts, setShowPaymentAccounts] = useState(false);
+  const [showSocialCatalog, setShowSocialCatalog] = useState(false);
+  const [activeSocialPlatform, setActiveSocialPlatform] = useState<SocialPlatformKey>('tiktok');
+  const [comboCart, setComboCart] = useState<ComboCartItem[]>([]);
+  const [copiedComboQuote, setCopiedComboQuote] = useState(false);
   const [showGreenPanel, setShowGreenPanel] = useState(false);
   const [copiedAccountKey, setCopiedAccountKey] = useState<string | null>(null);
 
@@ -304,6 +565,72 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
 
   const fullPaymentTemplate = `Cuentas Oficiales Digital MYK Lab\nTitular: Maycol Castañeda\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Ahorro Soles: Cta 8330613655 | CCI 00972420833061365561`;
 
+  const currentSocialPlatform = SOCIAL_CATALOG.find(p => p.key === activeSocialPlatform) || SOCIAL_CATALOG[0];
+  const comboTotal = comboCart.reduce((sum, item) => sum + item.price * item.qty, 0);
+
+  const addTierToCombo = (platform: SocialPlatformCatalog, category: string, tier: SocialTier) => {
+    setComboCart(prev => {
+      const existing = prev.find(i => i.id === tier.id);
+      if (existing) {
+        return prev.map(i => (i.id === tier.id ? { ...i, qty: i.qty + 1 } : i));
+      }
+      return [
+        ...prev,
+        {
+          id: tier.id,
+          platform: platform.label,
+          serviceName: platform.serviceName,
+          category,
+          label: tier.label,
+          price: tier.price,
+          qty: 1
+        }
+      ];
+    });
+  };
+
+  const updateComboQty = (id: string, delta: number) => {
+    setComboCart(prev =>
+      prev
+        .map(item => (item.id === id ? { ...item, qty: item.qty + delta } : item))
+        .filter(item => item.qty > 0)
+    );
+  };
+
+  const buildComboQuoteText = () => {
+    const lines = comboCart.map(
+      item => `• ${item.platform} — ${item.category}: ${item.label}${item.qty > 1 ? ` x${item.qty}` : ''} = S/ ${item.price * item.qty}`
+    );
+    return `🚀 *Cotización Crecimiento Redes Sociales — Digital MYK Lab*\n\n${lines.join('\n')}\n\n💰 *Total del Pack:* S/ ${comboTotal}\n📲 Envíanos el enlace (link) de tu perfil o publicación para iniciar.\n\n🟣 *Yape:* 929327654 | 🔵 *Plin:* 921034349 (Maycol Castañeda)`;
+  };
+
+  const handleCopyComboQuote = () => {
+    if (comboCart.length === 0) return;
+    navigator.clipboard.writeText(buildComboQuoteText());
+    setCopiedComboQuote(true);
+    setTimeout(() => setCopiedComboQuote(false), 1800);
+  };
+
+  const handleRegisterComboAsLead = () => {
+    if (comboCart.length === 0) return;
+    const uniqueServices = Array.from(new Set(comboCart.map(i => i.serviceName)));
+    setNewLeadService(uniqueServices.length === 1 ? uniqueServices[0] : 'Redes Sociales (S/ 10+)');
+    setNewLeadBusiness(
+      comboCart.map(i => `${i.platform} ${i.label}${i.qty > 1 ? ` x${i.qty}` : ''}`).join(' + ')
+    );
+    setNewLeadValue(String(comboTotal));
+    setShowAddSalesModal(true);
+  };
+
+  const handleSelectNewLeadService = (service: string) => {
+    setNewLeadService(service);
+    if (service === 'Combo Asistente IA + Web Gratis') setNewLeadValue('1490');
+    else if (service === 'Chatbot IA 24/7') setNewLeadValue('1200');
+    else if (service === 'Web Profesional PRO') setNewLeadValue('950');
+    else if (service === 'App a la Medida') setNewLeadValue('2800');
+    else setNewLeadValue('22');
+  };
+
   return (
     <div className="flex-1 h-full overflow-y-auto bg-slate-950 p-6 space-y-5">
       {/* Corporate Header Banner — 100% Dedicated to Digital MYK Lab */}
@@ -345,6 +672,17 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button
+            onClick={() => setShowSocialCatalog(prev => !prev)}
+            className={`px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer ${
+              showSocialCatalog
+                ? 'bg-pink-600 text-white border-pink-500 shadow-lg shadow-pink-950/50'
+                : 'bg-slate-800 hover:bg-slate-700 text-pink-300 border-pink-500/30'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Catálogo Redes S/ 10</span>
+          </button>
+          <button
             onClick={() => setShowPaymentAccounts(prev => !prev)}
             className={`px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer ${
               showPaymentAccounts
@@ -375,6 +713,179 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Interactive Social Media Growth Catalog & S/ 10+ Combo Builder */}
+      {showSocialCatalog && (
+        <div className="p-5 rounded-2xl bg-slate-900 border border-pink-500/35 shadow-xl space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-pink-500/15 border border-pink-500/30 text-pink-400">
+                <ShoppingBag className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-extrabold text-white">
+                  Catálogo Oficial Redes Sociales — Pedidos & Combos desde S/ 10
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Haz clic en cualquier paquete para armar un pedido o <strong className="text-pink-300">Pack Inicio desde S/ 10</strong> (combinando 2 o más servicios en el mismo enlace o distintos).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {SOCIAL_CATALOG.map(plat => (
+                <button
+                  key={plat.key}
+                  onClick={() => setActiveSocialPlatform(plat.key)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeSocialPlatform === plat.key
+                      ? 'bg-pink-600 text-white border-pink-500 shadow'
+                      : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <span>{plat.emoji}</span>
+                  <span>{plat.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            {/* Catalog Categories for Active Platform */}
+            <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+              {currentSocialPlatform.categories.map(cat => (
+                <div key={cat.name} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h5 className="text-xs font-extrabold text-white flex items-center gap-1.5">
+                      <span>{currentSocialPlatform.emoji}</span>
+                      <span>{cat.name}</span>
+                    </h5>
+                    {cat.combinableNote && (
+                      <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold">
+                        {cat.combinableNote}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {cat.tiers.map(tier => (
+                      <button
+                        key={tier.id}
+                        type="button"
+                        onClick={() => addTierToCombo(currentSocialPlatform, cat.name, tier)}
+                        className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between gap-1.5 ${
+                          tier.combinable
+                            ? 'bg-amber-950/20 border-amber-500/30 hover:border-amber-400 text-amber-100'
+                            : 'bg-slate-900 border-slate-800 hover:border-cyan-500/50 text-slate-200'
+                        }`}
+                      >
+                        <span className="text-[11px] font-semibold leading-tight">{tier.label}</span>
+                        <span className="font-mono text-xs font-extrabold text-emerald-400 shrink-0">
+                          S/ {tier.price}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Live S/ 10+ Combo Builder Cart */}
+            <div className="p-4 rounded-xl bg-slate-950 border border-cyan-500/30 flex flex-col justify-between space-y-3">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <div>
+                    <h5 className="text-xs font-extrabold text-white">🔥 Armador de Pack / Cotización</h5>
+                    <p className="text-[10px] text-slate-400">Pedido mínimo S/ 10 por transacción</p>
+                  </div>
+                  {comboCart.length > 0 && (
+                    <button
+                      onClick={() => setComboCart([])}
+                      className="text-[10px] text-slate-400 hover:text-rose-400 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Vaciar</span>
+                    </button>
+                  )}
+                </div>
+
+                {comboCart.length === 0 ? (
+                  <div className="py-8 text-center text-[11px] text-slate-500 space-y-1.5">
+                    <p>Selecciona paquetes de TikTok, Instagram, Facebook o YouTube.</p>
+                    <p className="text-cyan-400/80">Ej. YouTube 100 Likes (S/ 5) + 100 Vistas (S/ 5) = Pack Inicio S/ 10</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {comboCart.map(item => (
+                      <div key={item.id} className="p-2 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between gap-2 text-[11px]">
+                        <div className="min-w-0">
+                          <p className="font-bold text-white truncate">{item.platform} • {item.label}</p>
+                          <p className="text-[10px] text-slate-400">{item.category} • S/ {item.price} c/u</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => updateComboQty(item.id, -1)}
+                            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold cursor-pointer"
+                          >
+                            -
+                          </button>
+                          <span className="font-mono font-bold text-white w-4 text-center">{item.qty}</span>
+                          <button
+                            onClick={() => updateComboQty(item.id, 1)}
+                            className="w-5 h-5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold cursor-pointer"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2.5 pt-2 border-t border-slate-800">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-semibold">Total del Pedido:</span>
+                  <span className="text-lg font-extrabold font-mono text-emerald-400">S/ {comboTotal}</span>
+                </div>
+
+                {comboCart.length > 0 && comboTotal < 10 && (
+                  <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[10px] text-amber-200 leading-relaxed">
+                    💡 Llevas <strong>S/ {comboTotal}</strong>. Agrega otro servicio combinable (desde S/ 5 o S/ 6) para completar el <strong>Pack Inicio de S/ 10</strong>.
+                  </div>
+                )}
+
+                {comboTotal >= 10 && (
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-300 font-semibold">
+                    ✅ Pack listo para activar por WhatsApp y cobrar con Yape/Plin.
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={comboCart.length === 0}
+                    onClick={handleCopyComboQuote}
+                    className="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{copiedComboQuote ? '¡Copiado!' : 'Copiar Cotización'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={comboTotal < 10}
+                    onClick={handleRegisterComboAsLead}
+                    className="py-2 px-2.5 rounded-xl bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 disabled:opacity-40 text-white text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Crear Cliente CRM</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Collapsible Official Payment Accounts Panel */}
       {showPaymentAccounts && (
@@ -920,8 +1431,8 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
         )}
       </div>
 
-      {/* 4 Corporate Service Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 5 Corporate Service Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/40 transition-all space-y-2">
           <div className="flex items-center justify-between">
             <span className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-lg">🤖</span>
@@ -944,15 +1455,35 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
           </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-pink-500/40 transition-all space-y-2">
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-indigo-500/40 transition-all space-y-2">
           <div className="flex items-center justify-between">
-            <span className="w-9 h-9 rounded-xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center text-lg">🌐</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-pink-500/10 text-pink-300 border border-pink-500/20">Servicio 3</span>
+            <span className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-lg">🌐</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">Servicio 3</span>
           </div>
           <h4 className="text-xs font-extrabold text-white">Webs Profesionales PRO</h4>
           <p className="text-[11px] text-slate-400 leading-relaxed">
             Arquitectura de alta velocidad, Certificado SSL, posicionamiento SEO para Google y enlace directo a WhatsApp.
           </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-pink-950/35 via-slate-900 to-slate-900 border border-pink-500/40 space-y-2 flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="w-9 h-9 rounded-xl bg-pink-500/20 border border-pink-500/40 flex items-center justify-center text-lg">📈</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-pink-500/20 text-pink-300 border border-pink-500/30">Desde S/ 10</span>
+            </div>
+            <h4 className="text-xs font-extrabold text-pink-200">Redes Sociales (S/ 10+)</h4>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              Seguidores, Likes, Vistas, Comentarios y En Vivo para TikTok, Instagram, Facebook y YouTube con combos desde S/ 10.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSocialCatalog(true)}
+            className="w-full mt-1 py-1.5 px-2.5 rounded-lg bg-pink-600/25 hover:bg-pink-600/40 border border-pink-500/35 text-pink-200 text-[10px] font-bold cursor-pointer"
+          >
+            Abrir Catálogo & Armador S/ 10
+          </button>
         </div>
 
         <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-900 border border-amber-500/40 space-y-2">
@@ -1003,13 +1534,18 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
                   <label className="block text-slate-300 font-semibold mb-1">Solución:</label>
                   <select
                     value={newLeadService}
-                    onChange={(e) => setNewLeadService(e.target.value)}
+                    onChange={(e) => handleSelectNewLeadService(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white"
                   >
                     <option value="Combo Asistente IA + Web Gratis">Combo IA + Web Gratis</option>
                     <option value="Chatbot IA 24/7">Chatbot IA 24/7</option>
                     <option value="Web Profesional PRO">Web Profesional PRO</option>
                     <option value="App a la Medida">App a la Medida</option>
+                    <option value="Redes Sociales (S/ 10+)">Redes Sociales (S/ 10+)</option>
+                    <option value="Crecimiento TikTok">Crecimiento TikTok</option>
+                    <option value="Crecimiento Instagram">Crecimiento Instagram</option>
+                    <option value="Crecimiento Facebook">Crecimiento Facebook</option>
+                    <option value="Crecimiento YouTube">Crecimiento YouTube</option>
                   </select>
                 </div>
                 <div>
@@ -1088,15 +1624,36 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
               <div className="space-y-3">
                 <h5 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Datos Comerciales & Cobranza</h5>
 
-                <div>
-                  <label className="block text-slate-400 mb-1">Etapa del Pipeline:</label>
-                  <select
-                    value={activeSelectedLead.status}
-                    onChange={(e) => onUpdateSalesLead(activeSelectedLead.id, { status: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold"
-                  >
-                    {crmStages.map(st => <option key={st} value={st}>{st}</option>)}
-                  </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1">Etapa del Pipeline:</label>
+                    <select
+                      value={activeSelectedLead.status}
+                      onChange={(e) => onUpdateSalesLead(activeSelectedLead.id, { status: e.target.value as any })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-bold"
+                    >
+                      {crmStages.map(st => <option key={st} value={st}>{st}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">Servicio / Paquete:</label>
+                    <select
+                      value={activeSelectedLead.serviceInterest}
+                      onChange={(e) => onUpdateSalesLead(activeSelectedLead.id, { serviceInterest: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-semibold"
+                    >
+                      <option value="Información General de Servicios">Información General</option>
+                      <option value="Combo Asistente IA + Web Gratis">Combo IA + Web Gratis</option>
+                      <option value="Chatbot IA 24/7">Chatbot IA 24/7</option>
+                      <option value="Web Profesional PRO">Web Profesional PRO</option>
+                      <option value="App a la Medida">App a la Medida</option>
+                      <option value="Redes Sociales (S/ 10+)">Redes Sociales (S/ 10+)</option>
+                      <option value="Crecimiento TikTok">Crecimiento TikTok</option>
+                      <option value="Crecimiento Instagram">Crecimiento Instagram</option>
+                      <option value="Crecimiento Facebook">Crecimiento Facebook</option>
+                      <option value="Crecimiento YouTube">Crecimiento YouTube</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
