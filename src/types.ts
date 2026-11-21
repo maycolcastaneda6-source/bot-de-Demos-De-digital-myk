@@ -165,6 +165,7 @@ export interface GreenApiConfig {
   lastPing?: string;
   pollingEnabled?: boolean;
   autoRespondAll?: boolean;
+  replyMode?: 'poll_and_text' | 'interactive' | 'text_only';
 }
 
 export type SalesLeadStage =

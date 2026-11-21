@@ -25,7 +25,8 @@ import {
   Filter,
   ShoppingBag,
   Trash2,
-  Sparkles
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react';
 import { GreenApiConfig, SalesLead, SalesLeadStage } from '../types';
 
@@ -329,6 +330,9 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
   const [salesApiTokenInstance, setSalesApiTokenInstance] = useState(salesGreenApiConfig.apiTokenInstance || '');
   const [salesApiUrl, setSalesApiUrl] = useState(salesGreenApiConfig.apiUrl || 'https://7107.api.greenapi.com');
   const [salesConnectedPhone, setSalesConnectedPhone] = useState(salesGreenApiConfig.connectedPhone || '+51 929 327 654');
+  const [salesReplyMode, setSalesReplyMode] = useState<'poll_and_text' | 'interactive' | 'text_only'>(
+    salesGreenApiConfig.replyMode || 'poll_and_text'
+  );
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [diagnosing, setDiagnosing] = useState(false);
@@ -357,6 +361,12 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
         if (data.config?.pollingEnabled !== undefined) {
           setIsSalesPollingActive(data.config.pollingEnabled);
         }
+        if (data.config?.replyMode) {
+          setSalesReplyMode(data.config.replyMode);
+        }
+        if (data.config?.apiTokenInstance) {
+          setSalesApiTokenInstance(prev => prev || data.config.apiTokenInstance);
+        }
       })
       .catch(() => {});
   }, []);
@@ -371,8 +381,14 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
     if (salesGreenApiConfig.idInstance && !salesIdInstance) {
       setSalesIdInstance(salesGreenApiConfig.idInstance);
     }
+    if (salesGreenApiConfig.apiTokenInstance && !salesApiTokenInstance) {
+      setSalesApiTokenInstance(salesGreenApiConfig.apiTokenInstance);
+    }
     if (salesGreenApiConfig.apiUrl && salesApiUrl === 'https://api.greenapi.com') {
       setSalesApiUrl(salesGreenApiConfig.apiUrl);
+    }
+    if (salesGreenApiConfig.replyMode) {
+      setSalesReplyMode(salesGreenApiConfig.replyMode);
     }
   }, [salesGreenApiConfig]);
 
@@ -391,6 +407,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
       apiTokenInstance: salesApiTokenInstance.trim(),
       apiUrl: salesApiUrl.trim(),
       connectedPhone: salesConnectedPhone.trim(),
+      replyMode: salesReplyMode,
       status: 'connected'
     });
     setSaveSuccess(true);
@@ -714,6 +731,83 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
         </div>
       </div>
 
+      {/* Live WhatsApp Delivery / Quota Alert Banner */}
+      {(() => {
+        const latestErrorLog = salesTrafficLogs.find(l => l.type === 'error');
+        const isQuota466Error = Boolean(
+          latestErrorLog &&
+          (String(latestErrorLog.status || '').includes('466') ||
+            String(latestErrorLog.status || '').toLowerCase().includes('developer'))
+        );
+        const isMissingToken = !salesApiTokenInstance.trim() && !salesGreenApiConfig.apiTokenInstance;
+
+        if (!latestErrorLog && !isMissingToken) return null;
+
+        return (
+          <div
+            className={`p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+              isQuota466Error
+                ? 'bg-rose-950/50 border-rose-500/45 text-rose-100'
+                : 'bg-amber-950/45 border-amber-500/45 text-amber-100'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div
+                className={`p-2 rounded-xl shrink-0 ${
+                  isQuota466Error ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'
+                }`}
+              >
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="text-xs space-y-1">
+                {isMissingToken ? (
+                  <>
+                    <p className="font-extrabold text-amber-200">
+                      Falta configurar el apiTokenInstance para la línea {salesConnectedPhone}
+                    </p>
+                    <p className="text-amber-200/80 leading-relaxed">
+                      Sin el Token guardado en el servidor (o en la variable de entorno <code className="px-1 py-0.5 rounded bg-slate-900 text-cyan-300">SALES_GREEN_API_TOKEN</code> en Render), los mensajes entrantes no pueden responderse por WhatsApp al reiniciarse el servidor.
+                    </p>
+                  </>
+                ) : isQuota466Error ? (
+                  <>
+                    <p className="font-extrabold text-rose-200">
+                      Límite de Plan DEVELOPER en Green-API (HTTP 466) {latestErrorLog?.phone ? `• Número afectado: ${latestErrorLog.phone}` : ''}
+                    </p>
+                    <p className="text-rose-200/85 leading-relaxed">
+                      Green-API en tarifa gratuita <strong>DEVELOPER</strong> bloquea las respuestas a partir del <strong>4.º número nuevo del mes</strong>. Los primeros 3 números responden normal y los números nuevos adicionales devuelven error 466 hasta cambiar la instancia {salesIdInstance} a un plan pago.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-extrabold text-amber-200">
+                      Alerta de entrega WhatsApp: {latestErrorLog?.status} {latestErrorLog?.phone ? `(${latestErrorLog.phone})` : ''}
+                    </p>
+                    <p className="text-amber-200/80">
+                      Revisa el diagnóstico o verifica el modo de entrega en el panel de WhatsApp API.
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGreenPanel(true);
+                  handleDiagnose();
+                }}
+                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Abrir WhatsApp API &amp; Diagnosticar</span>
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Interactive Social Media Growth Catalog & S/ 10+ Combo Builder */}
       {showSocialCatalog && (
         <div className="p-5 rounded-2xl bg-slate-900 border border-pink-500/35 shadow-xl space-y-4">
@@ -997,7 +1091,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
             </div>
           </div>
 
-          <form onSubmit={handleSaveGreenConfig} className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+          <form onSubmit={handleSaveGreenConfig} className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
             <div>
               <label className="block text-slate-300 font-semibold mb-1">Número WhatsApp:</label>
               <input
@@ -1025,6 +1119,18 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
                 placeholder="Pega tu token aquí"
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono"
               />
+            </div>
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">Modo de Entrega (Botones):</label>
+              <select
+                value={salesReplyMode}
+                onChange={(e) => setSalesReplyMode(e.target.value as 'poll_and_text' | 'interactive' | 'text_only')}
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-emerald-300 font-semibold"
+              >
+                <option value="poll_and_text">Texto + Encuesta Táctil (100% Números Nuevos)</option>
+                <option value="interactive">Botones Interactivos (Android clásico)</option>
+                <option value="text_only">Solo Texto + Opciones Numeradas</option>
+              </select>
             </div>
             <div>
               <label className="block text-slate-300 font-semibold mb-1">Host API URL:</label>

@@ -236,6 +236,7 @@ interface GreenApiConfigState {
   lastWebhookReceived?: string;
   pollingEnabled?: boolean;
   autoRespondAll?: boolean;
+  replyMode?: 'poll_and_text' | 'interactive' | 'text_only';
 }
 
 const GREEN_CONFIG_PATH = path.join(process.cwd(), "green_api_store.json");
@@ -274,15 +275,18 @@ let greenApiConfig: GreenApiConfigState = {
   pollingEnabled: storedConfig.pollingEnabled !== undefined ? storedConfig.pollingEnabled : true
 };
 
+const resolvedSalesId = storedSalesConfig.idInstance || process.env.SALES_GREEN_API_ID_INSTANCE || "710722803080";
+const resolvedSalesToken = storedSalesConfig.apiTokenInstance || process.env.SALES_GREEN_API_TOKEN || "";
 let salesGreenApiConfig: GreenApiConfigState = {
-  idInstance: storedSalesConfig.idInstance || process.env.SALES_GREEN_API_ID_INSTANCE || "710722803080",
-  apiTokenInstance: storedSalesConfig.apiTokenInstance || process.env.SALES_GREEN_API_TOKEN || "",
+  idInstance: resolvedSalesId,
+  apiTokenInstance: resolvedSalesToken,
   apiUrl: storedSalesConfig.apiUrl || process.env.SALES_GREEN_API_URL || "https://7107.api.greenapi.com",
   connectedPhone: storedSalesConfig.connectedPhone || "+51 929 327 654",
-  status: (storedSalesConfig.idInstance && storedSalesConfig.apiTokenInstance) ? "connected" : "disconnected",
+  status: (resolvedSalesId && resolvedSalesToken) ? "connected" : "disconnected",
   lastPing: new Date().toISOString(),
   pollingEnabled: storedSalesConfig.pollingEnabled !== undefined ? storedSalesConfig.pollingEnabled : true,
-  autoRespondAll: storedSalesConfig.autoRespondAll !== undefined ? storedSalesConfig.autoRespondAll : true
+  autoRespondAll: storedSalesConfig.autoRespondAll !== undefined ? storedSalesConfig.autoRespondAll : true,
+  replyMode: storedSalesConfig.replyMode || 'poll_and_text'
 };
 
 // In-memory activity log for Green-API (supports both lines)
@@ -347,15 +351,25 @@ function markAndCheckDuplicateGreenMessage(idMessage?: string): boolean {
   return false;
 }
 
+function normalizeGreenChatId(raw: string): string {
+  return (raw || "").trim().replace(/:\d+(?=@)/, "");
+}
+
+function resolveGreenApiCandidates(senderData: any): { primaryChatId: string; altChatId?: string } {
+  if (!senderData || typeof senderData !== "object") return { primaryChatId: "" };
+  const rawList = [senderData.chatId, senderData.sender, senderData.senderId]
+    .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+    .map(normalizeGreenChatId);
+  const unique = Array.from(new Set(rawList));
+  const cUs = unique.find(v => v.endsWith("@c.us"));
+  const lid = unique.find(v => v.endsWith("@lid"));
+  const primaryChatId = cUs || lid || unique[0] || "";
+  const altChatId = unique.find(v => v !== primaryChatId && (v.endsWith("@c.us") || v.endsWith("@lid")));
+  return { primaryChatId, altChatId };
+}
+
 function resolveGreenApiSender(senderData: any): string {
-  if (!senderData || typeof senderData !== "object") return "";
-  const candidates = [senderData.chatId, senderData.sender, senderData.senderId].filter(
-    (v): v is string => typeof v === "string" && v.trim().length > 0
-  );
-  const cUs = candidates.find(v => v.endsWith("@c.us"));
-  if (cUs) return cUs;
-  const lid = candidates.find(v => v.endsWith("@lid"));
-  return lid || candidates[0] || "";
+  return resolveGreenApiCandidates(senderData).primaryChatId;
 }
 
 function isIgnorableGreenApiChat(rawSender: string): boolean {
@@ -368,7 +382,7 @@ function isIgnorableGreenApiChat(rawSender: string): boolean {
 }
 
 function deepFindMessageText(obj: any, depth = 0): string {
-  if (!obj || typeof obj !== "object" || depth > 4) return "";
+  if (!obj || typeof obj !== "object" || depth > 6) return "";
   const priorityKeys = [
     "buttonId",
     "selectedButtonId",
@@ -476,10 +490,12 @@ function extractGreenApiMessageText(messageData: any, rawSender: string): string
   if (typeMsg === "pollUpdateMessage" && messageData.pollMessageData?.votes) {
     const votes = messageData.pollMessageData.votes as Array<{ optionName: string; optionVoters?: string[] }>;
     const senderClean = (rawSender || "").replace(/@.*$/, "");
-    const picked = votes.find(v =>
-      Array.isArray(v.optionVoters) &&
-      v.optionVoters.some(voter => voter === rawSender || voter.replace(/@.*$/, "") === senderClean)
-    );
+    const picked =
+      votes.find(v =>
+        Array.isArray(v.optionVoters) &&
+        v.optionVoters.some(voter => voter === rawSender || voter.replace(/@.*$/, "") === senderClean)
+      ) ||
+      votes.find(v => Array.isArray(v.optionVoters) && v.optionVoters.length > 0);
     if (picked?.optionName) return picked.optionName;
   }
   if (typeMsg === "imageMessage" || typeMsg === "documentMessage") {
@@ -493,10 +509,13 @@ function extractGreenApiMessageText(messageData: any, rawSender: string): string
   if (typeMsg === "audioMessage" || typeMsg === "pttMessage" || typeMsg === "stickerMessage" || typeMsg === "locationMessage" || typeMsg === "contactMessage" || typeMsg === "contactsArrayMessage") {
     return "Hola";
   }
-  if (typeof messageData.textMessage === "string") {
-    return messageData.textMessage;
+  if (typeof messageData.textMessage === "string" && messageData.textMessage.trim()) {
+    return messageData.textMessage.trim();
   }
-  return deepFindMessageText(messageData);
+  const deepFound = deepFindMessageText(messageData);
+  if (deepFound) return deepFound;
+  // For any valid incoming customer message type (e.g. ephemeralMessage / viewOnceMessage) ensure bot still responds
+  return typeMsg ? "Hola" : "";
 }
 
 // Global Poller & Processor for Green-API incoming queue (bypasses webhook delivery blocks)
@@ -586,6 +605,7 @@ setInterval(() => {
 
 // Global Poller & Processor for Line 2 (Digital MYK Lab Ventas: +51 929 327 654)
 let isSalesPollingCurrently = false;
+let lastSalesPollErrorLogAt = 0;
 async function fetchAndProcessSalesNotification(): Promise<boolean> {
   const id = (salesGreenApiConfig.idInstance || "").trim();
   const token = (salesGreenApiConfig.apiTokenInstance || "").trim();
@@ -596,7 +616,16 @@ async function fetchAndProcessSalesNotification(): Promise<boolean> {
 
   try {
     const res = await fetch(receiveUrl, { method: "GET" });
-    if (!res.ok) return false;
+    if (!res.ok) {
+      if (Date.now() - lastSalesPollErrorLogAt > 60000) {
+        lastSalesPollErrorLogAt = Date.now();
+        addGreenApiLog({
+          type: 'error',
+          status: `🔴 Polling HTTP ${res.status} en Línea 929 327 654 (verifica token o plan Green-API)`
+        }, 'sales');
+      }
+      return false;
+    }
 
     const data: any = await res.json().catch(() => null);
     if (!data || !data.receiptId) return false;
@@ -610,7 +639,7 @@ async function fetchAndProcessSalesNotification(): Promise<boolean> {
       const senderData = body.senderData || {};
       const messageData = body.messageData || {};
 
-      const rawSender = resolveGreenApiSender(senderData);
+      const { primaryChatId: rawSender, altChatId } = resolveGreenApiCandidates(senderData);
       const isGroupOrStatus = isIgnorableGreenApiChat(rawSender);
       const senderPhone = rawSender.replace(/@.*$/, "");
       const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Prospecto WhatsApp";
@@ -629,7 +658,7 @@ async function fetchAndProcessSalesNotification(): Promise<boolean> {
 
         if (textMessage) {
           console.log(`[Sales Line Auto-Receiver] De: ${senderName} (${rawSender}): "${textMessage}"`);
-          await processDigitalMykSalesMessage(senderPhone, senderName, textMessage, rawSender);
+          await processDigitalMykSalesMessage(senderPhone, senderName, textMessage, rawSender, altChatId);
         }
       }
     }
@@ -854,6 +883,7 @@ loadStoredSalesLeads();
 interface SalesSessionState {
   chatId: string;
   replyChatId?: string;
+  altChatId?: string;
   phone: string;
   name: string;
   serviceInterest: string;
@@ -1285,21 +1315,115 @@ function buildProButtonResponse(action: string | null, cleanText: string, sender
   };
 }
 
-async function dispatchSalesInteractiveMessage(
-  chatId: string,
+async function sendSalesToSingleChatId(
+  targetChatId: string,
   header: string,
   body: string,
   footer: string,
-  buttons: SalesButtonOption[]
-): Promise<{ status: string; httpStatus?: number; data: any; mode: 'buttons' | 'text_fallback'; errorDetail?: string }> {
-  const cleanButtons = (buttons || [])
-    .slice(0, 3)
-    .map((b, idx) => ({
-      buttonId: String(b.buttonId || `btn_${idx + 1}`).slice(0, 50),
-      buttonText: String(b.buttonText || `Opción ${idx + 1}`).slice(0, 25)
-    }));
+  cleanButtons: SalesButtonOption[]
+): Promise<{ status: string; httpStatus?: number; data: any; mode: 'poll_and_text' | 'buttons' | 'text_fallback'; errorDetail?: string; usedChatId: string }> {
+  const cleanHeader = (header || "").trim().slice(0, 60);
+  const cleanFooter = (footer || "").trim().slice(0, 60);
+  const replyMode = salesGreenApiConfig.replyMode || 'poll_and_text';
+  const headerPrefix = cleanHeader ? `*${cleanHeader}*\n\n` : "";
 
-  if (cleanButtons.length > 0) {
+  const textUrl = getGreenApiUrl(
+    salesGreenApiConfig.idInstance,
+    salesGreenApiConfig.apiTokenInstance,
+    "sendMessage",
+    salesGreenApiConfig.apiUrl
+  );
+
+  // Mode 1 (Default): Guaranteed sendMessage + native WhatsApp sendPoll (100% delivery on brand-new numbers & @lid)
+  if (replyMode === 'poll_and_text') {
+    const sendRes = await fetch(textUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId: targetChatId, message: `${headerPrefix}${body}` })
+    });
+    const sendJson: any = await sendRes.json().catch(() => ({}));
+
+    if (sendRes.status === 466) {
+      return {
+        status: "error_466",
+        httpStatus: 466,
+        data: sendJson,
+        mode: 'poll_and_text',
+        errorDetail: sendJson?.message || "Límite mensual de chats del plan Developer excedido",
+        usedChatId: targetChatId
+      };
+    }
+
+    if (!sendRes.ok || !sendJson?.idMessage || sendJson?.error) {
+      return {
+        status: `error_${sendRes.status}`,
+        httpStatus: sendRes.status,
+        data: sendJson,
+        mode: 'poll_and_text',
+        errorDetail: sendJson?.message || sendJson?.error || `HTTP ${sendRes.status}`,
+        usedChatId: targetChatId
+      };
+    }
+
+    if (cleanButtons.length > 0) {
+      try {
+        const pollUrl = getGreenApiUrl(
+          salesGreenApiConfig.idInstance,
+          salesGreenApiConfig.apiTokenInstance,
+          "sendPoll",
+          salesGreenApiConfig.apiUrl
+        );
+        const pollRes = await fetch(pollUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chatId: targetChatId,
+            message: "👇 Toca una opción rápida para responder:",
+            options: cleanButtons.map(b => ({ optionName: b.buttonText })),
+            multipleAnswers: false
+          })
+        });
+        const pollJson: any = await pollRes.json().catch(() => ({}));
+        if (pollRes.ok && pollJson?.idMessage && !pollJson?.error) {
+          return {
+            status: "sent_success",
+            httpStatus: sendRes.status,
+            data: { text: sendJson, poll: pollJson },
+            mode: 'poll_and_text',
+            usedChatId: targetChatId
+          };
+        }
+        console.warn(`[Green-API Poll fallback for ${targetChatId}]:`, pollRes.status, pollJson);
+        return {
+          status: "sent_success",
+          httpStatus: sendRes.status,
+          data: { text: sendJson, pollWarning: pollJson },
+          mode: 'text_fallback',
+          usedChatId: targetChatId
+        };
+      } catch (pollErr: any) {
+        console.warn(`[Green-API Poll network warning for ${targetChatId}]:`, pollErr.message);
+        return {
+          status: "sent_success",
+          httpStatus: sendRes.status,
+          data: { text: sendJson, pollWarning: pollErr.message },
+          mode: 'text_fallback',
+          usedChatId: targetChatId
+        };
+      }
+    }
+
+    return {
+      status: "sent_success",
+      httpStatus: sendRes.status,
+      data: sendJson,
+      mode: 'poll_and_text',
+      usedChatId: targetChatId
+    };
+  }
+
+  // Mode 2: Interactive buttons with text fallback
+  if (replyMode === 'interactive' && cleanButtons.length > 0) {
     const buttonsUrl = getGreenApiUrl(
       salesGreenApiConfig.idInstance,
       salesGreenApiConfig.apiTokenInstance,
@@ -1307,20 +1431,22 @@ async function dispatchSalesInteractiveMessage(
       salesGreenApiConfig.apiUrl
     );
     try {
+      const btnPayload: Record<string, any> = {
+        chatId: targetChatId,
+        body,
+        buttons: cleanButtons
+      };
+      if (cleanHeader) btnPayload.header = cleanHeader;
+      if (cleanFooter) btnPayload.footer = cleanFooter;
+
       const btnRes = await fetch(buttonsUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chatId,
-          header: header.slice(0, 60),
-          body,
-          footer: footer.slice(0, 60),
-          buttons: cleanButtons
-        })
+        body: JSON.stringify(btnPayload)
       });
       const btnJson: any = await btnRes.json().catch(() => ({}));
       if (btnRes.ok && btnJson?.idMessage && !btnJson?.error) {
-        return { status: "sent_success", httpStatus: btnRes.status, data: btnJson, mode: 'buttons' };
+        return { status: "sent_success", httpStatus: btnRes.status, data: btnJson, mode: 'buttons', usedChatId: targetChatId };
       }
       if (btnRes.status === 466) {
         return {
@@ -1328,29 +1454,24 @@ async function dispatchSalesInteractiveMessage(
           httpStatus: 466,
           data: btnJson,
           mode: 'buttons',
-          errorDetail: btnJson?.message || "Límite mensual de chats del plan Developer excedido"
+          errorDetail: btnJson?.message || "Límite mensual de chats del plan Developer excedido",
+          usedChatId: targetChatId
         };
       }
-      console.warn("[Green-API Interactive Buttons fallback triggered]:", btnRes.status, btnJson);
+      console.warn(`[Green-API Interactive Buttons fallback for ${targetChatId}]:`, btnRes.status, btnJson);
     } catch (e: any) {
-      console.warn("[Green-API Interactive Buttons network fallback]:", e.message);
+      console.warn(`[Green-API Interactive Buttons network fallback for ${targetChatId}]:`, e.message);
     }
   }
 
-  // Fallback to formatted text with quick options if interactive buttons are rejected
-  const textUrl = getGreenApiUrl(
-    salesGreenApiConfig.idInstance,
-    salesGreenApiConfig.apiTokenInstance,
-    "sendMessage",
-    salesGreenApiConfig.apiUrl
-  );
+  // Mode 3 (text_only) or fallback to formatted text with numbered quick options
   const buttonsText = cleanButtons.length > 0
     ? `\n\n📌 *Opciones rápidas (responde con el texto o número):*\n${cleanButtons.map((b, i) => `${i + 1}️⃣ ${b.buttonText}`).join("\n")}`
     : "";
   const sendRes = await fetch(textUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chatId, message: `${body}${buttonsText}` })
+    body: JSON.stringify({ chatId: targetChatId, message: `${headerPrefix}${body}${buttonsText}` })
   });
   const sendJson: any = await sendRes.json().catch(() => ({}));
   return {
@@ -1358,12 +1479,44 @@ async function dispatchSalesInteractiveMessage(
     httpStatus: sendRes.status,
     data: sendJson,
     mode: 'text_fallback',
-    errorDetail: !sendRes.ok ? (sendJson?.message || sendJson?.error || `HTTP ${sendRes.status}`) : undefined
+    errorDetail: !sendRes.ok ? (sendJson?.message || sendJson?.error || `HTTP ${sendRes.status}`) : undefined,
+    usedChatId: targetChatId
   };
 }
 
+async function dispatchSalesInteractiveMessage(
+  chatId: string,
+  header: string,
+  body: string,
+  footer: string,
+  buttons: SalesButtonOption[],
+  altChatId?: string
+): Promise<{ status: string; httpStatus?: number; data: any; mode: 'poll_and_text' | 'buttons' | 'text_fallback'; errorDetail?: string; usedChatId: string }> {
+  const cleanButtons = (buttons || [])
+    .slice(0, 3)
+    .map((b, idx) => ({
+      buttonId: String(b.buttonId || `btn_${idx + 1}`).slice(0, 50),
+      buttonText: String(b.buttonText || `Opción ${idx + 1}`).slice(0, 25)
+    }));
+
+  const firstAttempt = await sendSalesToSingleChatId(chatId, header, body, footer, cleanButtons);
+  if (
+    firstAttempt.status !== "sent_success" &&
+    firstAttempt.httpStatus !== 466 &&
+    altChatId &&
+    altChatId !== chatId
+  ) {
+    console.warn(`[Green-API Sales Retry] Primary ${chatId} failed (${firstAttempt.status}), retrying altChatId ${altChatId}`);
+    const retryAttempt = await sendSalesToSingleChatId(altChatId, header, body, footer, cleanButtons);
+    if (retryAttempt.status === "sent_success") {
+      return retryAttempt;
+    }
+  }
+  return firstAttempt;
+}
+
 // Core Engine for Line 2 (+51 929 327 654): Serious Corporate B2B Sales + Interactive Buttons
-async function processDigitalMykSalesMessage(phone: string, senderName: string, text: string, rawChatId?: string) {
+async function processDigitalMykSalesMessage(phone: string, senderName: string, text: string, rawChatId?: string, altChatId?: string) {
   const cleanText = (text || "").trim() || "Hola";
   const lowerText = cleanText.toLowerCase();
 
@@ -1371,12 +1524,17 @@ async function processDigitalMykSalesMessage(phone: string, senderName: string, 
   const sessionKey = formattedPhone.replace(/[^0-9]/g, "");
 
   let session = salesSessions.get(sessionKey);
-  const isFirstMessage = !session || session.history.length === 0;
+  const existingLeadCheck = salesLeads.find(l => l.whatsapp.replace(/[^0-9]/g, "") === sessionKey);
+  const hasPriorBotReply =
+    Boolean(session && session.history.some(h => h.sender === 'bot')) ||
+    Boolean(existingLeadCheck && Array.isArray(existingLeadCheck.history) && existingLeadCheck.history.some((h: any) => h.sender === 'bot'));
+  const isFirstMessage = !hasPriorBotReply;
 
   if (!session) {
     session = {
       chatId: sessionKey,
-      replyChatId: rawChatId && rawChatId.includes("@") ? rawChatId : undefined,
+      replyChatId: rawChatId && rawChatId.includes("@") ? normalizeGreenChatId(rawChatId) : undefined,
+      altChatId: altChatId && altChatId.includes("@") ? normalizeGreenChatId(altChatId) : undefined,
       phone: formattedPhone,
       name: senderName || "Prospecto WhatsApp",
       serviceInterest: "Información General de Servicios",
@@ -1384,8 +1542,13 @@ async function processDigitalMykSalesMessage(phone: string, senderName: string, 
       lastActivity: new Date().toISOString()
     };
     salesSessions.set(sessionKey, session);
-  } else if (rawChatId && rawChatId.includes("@")) {
-    session.replyChatId = rawChatId;
+  } else {
+    if (rawChatId && rawChatId.includes("@")) {
+      session.replyChatId = normalizeGreenChatId(rawChatId);
+    }
+    if (altChatId && altChatId.includes("@")) {
+      session.altChatId = normalizeGreenChatId(altChatId);
+    }
   }
 
   if (senderName && senderName !== "Prospecto WhatsApp" && senderName !== "Cliente") {
@@ -1436,10 +1599,11 @@ CUENTAS OFICIALES PARA DEPÓSITOS (Titular: Maycol Castañeda):
 
 REGLAS ESTRICTAS:
 1. Tono ejecutivo, serio, confiable y amable. Prohibido decir "demo" o hablar de márgenes internos del negocio.
-2. Para Redes Sociales: enfatiza el beneficio ("Con pedidos desde S/ 10 puedes armar tu Pack Inicio combinando vistas + likes en el mismo video o distintos enlaces para lograr interacción completa"). Si pide menos de S/ 10 (ej. solo 500 likes a S/ 6), ofrécele amablemente armar un "Pack Inicio de S/ 10+" combinando 2 servicios (sin sonar restrictivo) y solicita su enlace (link) del perfil o video.
-3. Si pregunta por cuentas, Yape, Plin o bancos, entrega las cuentas oficiales completas a nombre de Maycol Castañeda.
-4. Mantén la respuesta clara para WhatsApp (máximo 10 líneas) e indica que puede responder con los botones de abajo.
-5. Agrega al final en línea oculta:
+2. ${isFirstMessage ? 'Es el primer mensaje del cliente: preséntate brevemente.' : 'Ya respondiste anteriormente en este chat: NO incluyas encabezado de bienvenida ni repitas "Hola, bienvenido a Digital MYK Lab"; ve directo al punto.'}
+3. Para Redes Sociales: enfatiza el beneficio ("Con pedidos desde S/ 10 puedes armar tu Pack Inicio combinando vistas + likes en el mismo video o distintos enlaces para lograr interacción completa"). Si pide menos de S/ 10 (ej. solo 500 likes a S/ 6), ofrécele amablemente armar un "Pack Inicio de S/ 10+" combinando 2 servicios (sin sonar restrictivo) y solicita su enlace (link) del perfil o video.
+4. Si pregunta por cuentas, Yape, Plin o bancos, entrega las cuentas oficiales completas a nombre de Maycol Castañeda.
+5. Mantén la respuesta clara para WhatsApp (máximo 10 líneas) e indica que puede responder con los botones de abajo.
+6. Agrega al final en línea oculta:
 [SALES_LEAD: {"clientName":"${session.name}", "serviceInterest":"...", "businessType":"...", "estimatedValue":${getDefaultEstimatedValue(detectedService)}, "stage":"💬 En Asesoría" | "📄 Cotizado" | "💳 Pago / Cierre"}]
 
 Historial reciente:
@@ -1526,36 +1690,49 @@ Mensaje actual del cliente (${session.name} - ${formattedPhone}):
   saveStoredSalesLeads();
 
   // Send out via Line 2 Green-API using Interactive Buttons + automatic fallback
+  // Show header ONLY on the 1st bot response; omit it completely from the 2nd response onward
+  const messageHeader = isFirstMessage ? "Digital MYK Lab • Atención Comercial" : "";
+  const messageFooter = isFirstMessage ? "Seguridad y Garantía • digitalmyklab.onrender.com" : "";
+
   let greenApiSendStatus = "not_sent";
   if (salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance && sessionKey.length >= 7) {
     const cleanPhone = formattedPhone.replace(/[^0-9]/g, "");
     const chatId =
       (rawChatId && rawChatId.includes("@"))
-        ? rawChatId
+        ? normalizeGreenChatId(rawChatId)
         : (session.replyChatId && session.replyChatId.includes("@"))
-          ? session.replyChatId
+          ? normalizeGreenChatId(session.replyChatId)
           : `${cleanPhone}@c.us`;
+    const fallbackChatId =
+      (altChatId && altChatId.includes("@"))
+        ? normalizeGreenChatId(altChatId)
+        : session.altChatId;
     try {
       const dispatch = await dispatchSalesInteractiveMessage(
         chatId,
-        "Digital MYK Lab • Atención Comercial",
+        messageHeader,
         botReply,
-        "Seguridad y Garantía • digitalmyklab.onrender.com",
-        replyButtons
+        messageFooter,
+        replyButtons,
+        fallbackChatId
       );
       greenApiSendStatus = dispatch.status;
       const isQuota466 = dispatch.httpStatus === 466 || String(dispatch.errorDetail || "").toLowerCase().includes("quota");
       addGreenApiLog({
         type: dispatch.status === "sent_success" ? 'outgoing_send' : 'error',
-        phone: chatId.endsWith("@lid") ? `${formattedPhone} (LID)` : formattedPhone,
+        phone: dispatch.usedChatId.endsWith("@lid") ? `${formattedPhone} (LID)` : formattedPhone,
         sender: session.name,
         text: botReply.slice(0, 120) + (botReply.length > 120 ? "..." : ""),
         status: dispatch.status === "sent_success"
-          ? (dispatch.mode === 'buttons' ? '🟢 Botones Interactivos Enviados (929 327 654)' : '🟢 Respuesta PRO Enviada (929 327 654)')
+          ? (dispatch.mode === 'poll_and_text'
+              ? '🟢 Texto + Encuesta Táctil Enviados (929 327 654)'
+              : dispatch.mode === 'buttons'
+                ? '🟢 Botones Interactivos Enviados (929 327 654)'
+                : '🟢 Respuesta PRO Enviada (929 327 654)')
           : isQuota466
             ? '🔴 Límite Plan DEVELOPER (HTTP 466): Green-API bloqueó este número por cuota gratuita'
             : `🔴 Error Envío (${dispatch.status}): ${dispatch.errorDetail || 'Revisa consola'}`,
-        details: { chatId, ...dispatch.data }
+        details: { chatId: dispatch.usedChatId, ...dispatch.data }
       }, 'sales');
     } catch (err: any) {
       greenApiSendStatus = "network_error";
@@ -1578,6 +1755,7 @@ Mensaje actual del cliente (${session.name} - ${formattedPhone}):
 
   return {
     reply: botReply,
+    header: messageHeader || undefined,
     buttons: replyButtons,
     lead: leadPayload,
     actionTriggered: "SALES_LEAD_UPSERT",
@@ -2125,7 +2303,7 @@ app.get("/api/green-api/sales/config", (req, res) => {
 });
 
 app.post("/api/green-api/sales/config", (req, res) => {
-  const { idInstance, apiTokenInstance, apiUrl, connectedPhone, pollingEnabled, autoRespondAll } = req.body;
+  const { idInstance, apiTokenInstance, apiUrl, connectedPhone, pollingEnabled, autoRespondAll, replyMode } = req.body;
   if (idInstance !== undefined) {
     salesGreenApiConfig.idInstance = idInstance.trim();
   }
@@ -2146,6 +2324,9 @@ app.post("/api/green-api/sales/config", (req, res) => {
   if (autoRespondAll !== undefined) {
     salesGreenApiConfig.autoRespondAll = !!autoRespondAll;
   }
+  if (replyMode === 'poll_and_text' || replyMode === 'interactive' || replyMode === 'text_only') {
+    salesGreenApiConfig.replyMode = replyMode;
+  }
   salesGreenApiConfig.lastPing = new Date().toISOString();
   salesGreenApiConfig.status = (salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance) ? "connected" : "disconnected";
 
@@ -2153,8 +2334,8 @@ app.post("/api/green-api/sales/config", (req, res) => {
 
   addGreenApiLog({
     type: 'diagnostic',
-    status: `⚙️ Línea Ventas 929 327 654 Guardada (idInstance: ${salesGreenApiConfig.idInstance || 'pendiente'})`,
-    details: { apiUrl: salesGreenApiConfig.apiUrl, hasToken: !!salesGreenApiConfig.apiTokenInstance, polling: salesGreenApiConfig.pollingEnabled }
+    status: `⚙️ Línea Ventas 929 327 654 Guardada (idInstance: ${salesGreenApiConfig.idInstance || 'pendiente'}, modo: ${salesGreenApiConfig.replyMode})`,
+    details: { apiUrl: salesGreenApiConfig.apiUrl, hasToken: !!salesGreenApiConfig.apiTokenInstance, polling: salesGreenApiConfig.pollingEnabled, replyMode: salesGreenApiConfig.replyMode }
   }, 'sales');
 
   if (salesGreenApiConfig.idInstance && salesGreenApiConfig.apiTokenInstance) {
@@ -2378,7 +2559,7 @@ app.post("/api/green-api/sales/webhook", async (req, res) => {
     if (isIncomingSalesMsg) {
       const senderData = body.senderData || {};
       const messageData = body.messageData || {};
-      const rawSender = resolveGreenApiSender(senderData);
+      const { primaryChatId: rawSender, altChatId } = resolveGreenApiCandidates(senderData);
       const isGroupOrStatus = isIgnorableGreenApiChat(rawSender);
       const senderPhone = rawSender.replace(/@.*$/, "");
       const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Prospecto WhatsApp";
@@ -2396,7 +2577,7 @@ app.post("/api/green-api/sales/webhook", async (req, res) => {
         }, 'sales');
 
         if (textMessage) {
-          const result = await processDigitalMykSalesMessage(senderPhone, senderName, textMessage, rawSender);
+          const result = await processDigitalMykSalesMessage(senderPhone, senderName, textMessage, rawSender, altChatId);
           return res.json({ status: "processed", result });
         }
       }
@@ -2661,7 +2842,7 @@ app.post(["/api/green-api/webhook", "/api/webhooks/green-api"], async (req, res)
       const senderData = body.senderData || {};
       const messageData = body.messageData || {};
 
-      const rawSender = resolveGreenApiSender(senderData);
+      const { primaryChatId: rawSender, altChatId } = resolveGreenApiCandidates(senderData);
       const isGroupOrStatus = isIgnorableGreenApiChat(rawSender);
       const senderPhone = rawSender.replace(/@.*$/, "");
       const senderName = senderData.senderName || senderData.chatName || senderData.senderContactName || "Cliente WhatsApp";
@@ -2683,7 +2864,7 @@ app.post(["/api/green-api/webhook", "/api/webhooks/green-api"], async (req, res)
         if (textMessage) {
           console.log(`[Green-API Message Incoming] [${isSalesInstance ? 'SALES' : 'DEMOS'}] De: ${senderName} (${rawSender}): "${textMessage}"`);
           const result = isSalesInstance
-            ? await processDigitalMykSalesMessage(senderPhone, senderName, textMessage, rawSender)
+            ? await processDigitalMykSalesMessage(senderPhone, senderName, textMessage, rawSender, altChatId)
             : await processDemoMessage(senderPhone, senderName, textMessage, rawSender);
           return res.json({ status: "processed", result });
         }

@@ -343,7 +343,9 @@ export const SimulatorModal: React.FC<SimulatorModalProps> = ({
                 </div>
               )}
 
-              {chatThread.map((msg, idx) => (
+              {chatThread.map((msg, idx) => {
+                const firstBotIdx = chatThread.findIndex(m => m.sender === 'bot');
+                return (
                 <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
                   {msg.sender === 'user' ? (
                     <div className="max-w-[220px] p-2.5 rounded-2xl rounded-tr-xs bg-[#005c4b] text-white text-[11px] shadow">
@@ -353,9 +355,11 @@ export const SimulatorModal: React.FC<SimulatorModalProps> = ({
                   ) : (
                     <div className="max-w-[245px] space-y-1.5">
                       <div className="p-2.5 rounded-2xl rounded-tl-xs bg-[#202c33] border border-slate-700/60 text-slate-100 text-[11px] shadow">
-                        <div className="flex items-center gap-1 text-[9px] font-bold text-cyan-400 mb-1">
-                          <Bot className="w-2.5 h-2.5" /> Digital MYK Lab Oficial
-                        </div>
+                        {idx === firstBotIdx && (
+                          <div className="flex items-center gap-1 text-[9px] font-bold text-cyan-400 mb-1">
+                            <Bot className="w-2.5 h-2.5" /> Digital MYK Lab Oficial
+                          </div>
+                        )}
                         <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                         <span className="text-[8px] text-slate-400 flex justify-end mt-1">{msg.time}</span>
                       </div>
@@ -379,7 +383,8 @@ export const SimulatorModal: React.FC<SimulatorModalProps> = ({
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
 
               {isSimulating && (
                 <div className="flex items-center gap-1.5 text-cyan-400 text-xs italic bg-[#202c33] p-2 rounded-xl border border-cyan-500/20 max-w-[180px]">
