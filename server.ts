@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import {
   connectBaileysSales,
   disconnectBaileysSales,
+  ensureBaileysConnectedIfSaved,
   exportBaileysAuthBase64,
   getBaileysStatusSnapshot,
   registerBaileysCallbacks,
@@ -146,9 +147,43 @@ Devuelve EXCLUSIVAMENTE JSON válido con esta estructura:
   return null;
 }
 
-// Healthcheck
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString(), aiReady: !!(process.env.GEMINI_API_KEY?.trim()) });
+// Healthcheck & 24/7 Keep-Alive (cron-job.org / UptimeRobot)
+async function buildKeepAliveStatus() {
+  const provider = salesGreenApiConfig.provider || 'baileys';
+  let watchdog = { checked: false, triggeredReconnect: false, status: 'n/a' };
+  if (provider === 'baileys') {
+    watchdog = await ensureBaileysConnectedIfSaved();
+  }
+  const baileysSnap = getBaileysStatusSnapshot();
+  return {
+    status: "ok",
+    keepAlive: true,
+    uptimeSeconds: Math.round(process.uptime()),
+    timestamp: new Date().toISOString(),
+    aiReady: !!(process.env.GEMINI_API_KEY?.trim()),
+    provider,
+    whatsapp: baileysSnap.status,
+    connectedPhone: baileysSnap.connectedPhone || null,
+    hasSavedSession: baileysSnap.hasSavedSession,
+    autoReconnectTriggered: watchdog.triggeredReconnect
+  };
+}
+
+app.get("/api/health", async (req, res) => {
+  const payload = await buildKeepAliveStatus();
+  res.json(payload);
+});
+
+app.get("/api/keep-alive", async (req, res) => {
+  const payload = await buildKeepAliveStatus();
+  res.json(payload);
+});
+
+app.head("/api/keep-alive", async (req, res) => {
+  if ((salesGreenApiConfig.provider || 'baileys') === 'baileys') {
+    ensureBaileysConnectedIfSaved().catch(() => {});
+  }
+  res.status(200).end();
 });
 
 // Endpoint: AI Smart Reply / Autonomous Bot Response
@@ -3663,7 +3698,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const httpServer = app.listen(PORT, "0.0.0.0", () => {
     console.log(`[OmniFlow Server] Running on http://localhost:${PORT}`);
     registerBaileysCallbacks(
       async (payload) => {
@@ -3697,6 +3732,23 @@ async function startServer() {
       console.log("[Baileys Sales Engine] Auto-resuming saved WhatsApp session...");
       connectBaileysSales().catch((e) => console.warn("[Baileys Auto-Resume Warning]:", e?.message));
     }
+
+    // Internal watchdog every 4 minutes to auto-recover transient socket drops
+    const watchdogInterval = setInterval(() => {
+      if ((salesGreenApiConfig.provider || 'baileys') === 'baileys') {
+        ensureBaileysConnectedIfSaved().catch(() => {});
+      }
+    }, 4 * 60 * 1000);
+
+    const handleGracefulShutdown = async (signal: string) => {
+      console.log(`[OmniFlow Server] Received ${signal}, closing WhatsApp socket gracefully...`);
+      clearInterval(watchdogInterval);
+      await disconnectBaileysSales(false).catch(() => {});
+      httpServer.close(() => process.exit(0));
+      setTimeout(() => process.exit(0), 3000);
+    };
+    process.once("SIGTERM", () => { handleGracefulShutdown("SIGTERM"); });
+    process.once("SIGINT", () => { handleGracefulShutdown("SIGINT"); });
   });
 }
 

@@ -44,6 +44,8 @@ const sentMessageStore = new Map<string, any>();
 
 let activeSock: any = null;
 let isStarting = false;
+let envAuthInvalidated = false;
+let explicitDisconnected = false;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let reconnectAttempts = 0;
 let incomingHandler: IncomingHandler | null = null;
@@ -78,6 +80,7 @@ export function restoreBaileysAuthFromEnv(): boolean {
   try {
     const credsFile = path.join(AUTH_DIR, "creds.json");
     if (fs.existsSync(credsFile)) return true;
+    if (envAuthInvalidated) return false;
 
     const rawB64 = (process.env.SALES_WA_AUTH_B64 || "").trim();
     if (!rawB64) return false;
@@ -168,9 +171,12 @@ export async function connectBaileysSales(options?: {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
+  explicitDisconnected = false;
 
   if (options?.forceResetAuth) {
+    envAuthInvalidated = true;
     await disconnectBaileysSales(true);
+    explicitDisconnected = false;
   }
 
   if (isStarting) {
@@ -233,13 +239,13 @@ export async function connectBaileysSales(options?: {
       version: waVersion,
       auth: state,
       logger: pino({ level: "silent" }) as any,
-      browser: Browsers.ubuntu("Digital MYK Lab"),
+      browser: Browsers.ubuntu("Chrome"),
       syncFullHistory: false,
       markOnlineOnConnect: true,
       generateHighQualityLinkPreview: false,
       connectTimeoutMs: 45000,
       defaultQueryTimeoutMs: 45000,
-      keepAliveIntervalMs: 25000,
+      keepAliveIntervalMs: 20000,
       getMessage: async (key: any) => {
         const stored = key?.id ? sentMessageStore.get(key.id) : undefined;
         return stored?.message || undefined;
@@ -269,6 +275,8 @@ export async function connectBaileysSales(options?: {
 
       if (connection === "open") {
         reconnectAttempts = 0;
+        envAuthInvalidated = false;
+        explicitDisconnected = false;
         const rawUserId = sock.user?.id || "";
         const cleanDigits = rawUserId.replace(/@.*$/, "").replace(/:.*$/, "").replace(/[^0-9]/g, "");
         updateSnapshot({
@@ -294,8 +302,10 @@ export async function connectBaileysSales(options?: {
           lastDisconnect?.error?.statusCode;
         const reasonMsg = lastDisconnect?.error?.message || `Desconectado (${statusCode || "desconocido"})`;
         const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401;
+        const isReplaced = statusCode === DisconnectReason.connectionReplaced || statusCode === 440;
 
         if (isLoggedOut) {
+          envAuthInvalidated = true;
           try {
             fs.rmSync(AUTH_DIR, { recursive: true, force: true });
           } catch {}
@@ -305,19 +315,32 @@ export async function connectBaileysSales(options?: {
             qrDataUrl: undefined,
             pairingCode: undefined,
             connectedJid: undefined,
-            lastError: "Sesión cerrada desde el teléfono. Vuelve a escanear el QR o generar un código."
+            lastError: "Sesión cerrada desde el celular (401) o reemplazada por otra instancia. Escanea el QR nuevamente y actualiza SALES_WA_AUTH_B64."
           });
           logHandler?.({
             type: "error",
-            status: "🔴 Sesión WhatsApp cerrada desde el celular. Vincula nuevamente."
+            status: "🔴 Sesión WhatsApp cerrada desde el celular (401). Vincula nuevamente."
+          });
+          return;
+        }
+
+        if (isReplaced) {
+          activeSock = null;
+          updateSnapshot({
+            status: "disconnected",
+            lastError: "Otra instancia conectó este mismo WhatsApp (440). Evita tener 2 servidores corriendo con la misma sesión."
+          });
+          logHandler?.({
+            type: "diagnostic",
+            status: "🟡 Conexión pausada (440): otra instancia tomó la sesión temporalmente."
           });
           return;
         }
 
         // Auto-reconnect on transient disconnect or restartRequired (515 after QR scan)
-        if (activeSock === sock) {
+        if (activeSock === sock && !explicitDisconnected) {
           reconnectAttempts += 1;
-          const delayMs = statusCode === DisconnectReason.restartRequired ? 800 : Math.min(15000, 2000 * reconnectAttempts);
+          const delayMs = statusCode === DisconnectReason.restartRequired ? 800 : Math.min(20000, 2500 * reconnectAttempts);
           updateSnapshot({
             status: "connecting",
             lastError: reconnectAttempts > 2 ? reasonMsg : undefined
@@ -519,6 +542,7 @@ export async function connectBaileysSales(options?: {
 }
 
 export async function disconnectBaileysSales(clearAuth = false): Promise<BaileysStatusSnapshot> {
+  explicitDisconnected = true;
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
@@ -533,6 +557,7 @@ export async function disconnectBaileysSales(clearAuth = false): Promise<Baileys
     activeSock = null;
   }
   if (clearAuth) {
+    envAuthInvalidated = true;
     try {
       fs.rmSync(AUTH_DIR, { recursive: true, force: true });
     } catch {}
@@ -544,6 +569,22 @@ export async function disconnectBaileysSales(clearAuth = false): Promise<Baileys
     lastError: undefined
   });
   return getBaileysStatusSnapshot();
+}
+
+export async function ensureBaileysConnectedIfSaved(): Promise<{ checked: boolean; triggeredReconnect: boolean; status: string }> {
+  const snap = getBaileysStatusSnapshot();
+  if (snap.status === "connected" || snap.status === "connecting" || snap.status === "qr_ready" || snap.status === "pairing_ready") {
+    return { checked: true, triggeredReconnect: false, status: snap.status };
+  }
+  if (explicitDisconnected || envAuthInvalidated || isStarting) {
+    return { checked: true, triggeredReconnect: false, status: snap.status };
+  }
+  const hasAuth = snap.hasSavedSession || Boolean((process.env.SALES_WA_AUTH_B64 || "").trim());
+  if (!hasAuth) {
+    return { checked: true, triggeredReconnect: false, status: snap.status };
+  }
+  await connectBaileysSales().catch(() => {});
+  return { checked: true, triggeredReconnect: true, status: getBaileysStatusSnapshot().status };
 }
 
 export async function sendBaileysSalesReply(params: {

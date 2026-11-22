@@ -366,10 +366,32 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
   const [settingWebhook, setSettingWebhook] = useState(false);
   const [setWebhookResult, setSetWebhookResult] = useState<string | null>(null);
   const [isSalesPollingActive, setIsSalesPollingActive] = useState(true);
+  const [copiedKeepAlive, setCopiedKeepAlive] = useState(false);
+  const [keepAliveTesting, setKeepAliveTesting] = useState(false);
+  const [keepAliveCheckResult, setKeepAliveCheckResult] = useState<string | null>(null);
 
   const currentHost = typeof window !== 'undefined' ? window.location.origin : 'https://digitalmyklab.onrender.com';
   const salesWebhookUrl = `${currentHost}/api/green-api/sales/webhook`;
   const cloudWebhookUrl = `${currentHost}/api/whatsapp/sales/cloud-webhook`;
+  const keepAliveUrl = `${currentHost}/api/keep-alive`;
+
+  const handleTestKeepAlive = async () => {
+    setKeepAliveTesting(true);
+    setKeepAliveCheckResult(null);
+    try {
+      const res = await fetch('/api/keep-alive');
+      const data = await res.json();
+      if (res.ok && data.ok !== false) {
+        setKeepAliveCheckResult(`🟢 Activo • Uptime: ${data.uptimeSeconds || 0}s • WhatsApp: ${data.whatsapp}`);
+      } else {
+        setKeepAliveCheckResult('⚠️ Error consultando /api/keep-alive');
+      }
+    } catch {
+      setKeepAliveCheckResult('⚠️ No se pudo conectar con /api/keep-alive');
+    } finally {
+      setKeepAliveTesting(false);
+    }
+  };
 
   const fetchSalesLogs = useCallback(() => {
     fetch('/api/green-api/sales/logs')
@@ -1473,14 +1495,14 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
                     <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[11px] text-slate-300 font-semibold">
-                          Respaldo Permanente Render (<code className="text-cyan-300">SALES_WA_AUTH_B64</code>):
+                          Respaldo Permanente Servidor (<code className="text-cyan-300">SALES_WA_AUTH_B64</code>):
                         </span>
                         <button
                           type="button"
                           onClick={handleExportBaileysAuth}
                           className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold cursor-pointer"
                         >
-                          Exportar Sesión Render
+                          Exportar Sesión
                         </button>
                       </div>
                       {exportedAuthB64 && (
@@ -1506,6 +1528,58 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
                       )}
                     </div>
                   )}
+
+                  {/* 24/7 Keep-Alive Configuration Card (cron-job.org) */}
+                  <div className="p-3 rounded-xl bg-emerald-950/25 border border-emerald-500/30 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-extrabold text-emerald-300">
+                        ⏱️ Keep-Alive 24/7 (cron-job.org) — Evita que el servidor se duerma
+                      </span>
+                      <a
+                        href="https://console.cron-job.org/login"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2 py-0.5 rounded bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/40 text-[10px] font-bold inline-flex items-center gap-1"
+                      >
+                        <span>Abrir cron-job.org</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        readOnly
+                        value={keepAliveUrl}
+                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-[10px] font-mono text-cyan-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(keepAliveUrl);
+                          setCopiedKeepAlive(true);
+                          setTimeout(() => setCopiedKeepAlive(false), 1800);
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>{copiedKeepAlive ? '¡Copiado!' : 'Copiar URL'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={keepAliveTesting}
+                        onClick={handleTestKeepAlive}
+                        className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-[10px] font-bold cursor-pointer shrink-0"
+                      >
+                        {keepAliveTesting ? '...' : 'Probar'}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-300 leading-relaxed">
+                      Configura en <strong>cron-job.org</strong> cada <strong>5 minutos</strong> apuntando a esta URL para mantener el bot despierto y reconectado automáticamente. <em>Importante:</em> vincula este número en <strong>un solo servidor</strong> a la vez; si dos servidores usan el mismo respaldo simultáneamente, WhatsApp cierra la sesión (401).
+                    </p>
+                    {keepAliveCheckResult && (
+                      <p className="text-[10px] font-mono text-emerald-300">{keepAliveCheckResult}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
