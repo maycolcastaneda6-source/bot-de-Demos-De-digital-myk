@@ -721,7 +721,7 @@ export const DigitalMykCrmView: React.FC<DigitalMykCrmViewProps> = ({
     setTimeout(() => setCopiedAccountKey(null), 1800);
   };
 
-  const fullPaymentTemplate = `Cuentas Oficiales Digital MYK Lab\nTitular: Maycol Castañeda\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Ahorro Soles: Cta 8330613655 | CCI 00972420833061365561\n\nModalidad de Pago:\n• Desarrollo de Software (Chatbots IA, Webs y Apps): 50% de adelanto para iniciar y 50% contra entrega.\n• Impulso Redes Sociales: Pago 100% adelantado para activación inmediata.`;
+  const fullPaymentTemplate = `Cuentas Oficiales Digital MYK Lab\nTitular: Maycol Castañeda\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Ahorro Soles: Cta 8330613655 | CCI 00972420833061365561`;
 
   const currentSocialPlatform = SOCIAL_CATALOG.find(p => p.key === activeSocialPlatform) || SOCIAL_CATALOG[0];
   const comboTotal = comboCart.reduce((sum, item) => sum + item.price * item.qty, 0);

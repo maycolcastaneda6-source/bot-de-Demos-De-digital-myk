@@ -537,7 +537,7 @@ export const LiveDemosHubView: React.FC<LiveDemosHubViewProps> = ({
     setTimeout(() => setCopiedAccountKey(null), 1800);
   };
 
-  const fullPaymentTemplate = `Cuentas Oficiales Digital MYK Lab\nTitular: Maycol Castañeda\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Ahorro Soles: Cta 8330613655 | CCI 00972420833061365561\n\nModalidad de Pago:\n• Desarrollo de Software (Chatbots IA, Webs y Apps): 50% de adelanto para iniciar y 50% contra entrega.\n• Impulso Redes Sociales: Pago 100% adelantado.`;
+  const fullPaymentTemplate = `Cuentas Oficiales Digital MYK Lab\nTitular: Maycol Castañeda\n• Yape: 929327654\n• Plin: 921034349\n• Banco de la Nación: Cta 04765342509 | CCI 018-765-004765342509-81\n• Scotiabank Ahorro Soles: Cta 8330613655 | CCI 00972420833061365561`;
 
   // Calculations for Beauty Kanban
   const beautyTotalRevenue = beautyAppointments.reduce((acc, curr) => acc + (curr.amount || 0), 0);

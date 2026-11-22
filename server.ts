@@ -1097,11 +1097,7 @@ const DIGITAL_MYK_PAYMENT_DETAILS = `👤 *Titular:* Maycol Castañeda
 
 🔴 *Scotiabank (Cuenta Ahorro Soles)*
 • N° Cuenta: 8330613655
-• CCI: 00972420833061365561
-
-📌 *Modalidad de Pago:*
-• *Desarrollo de Software (Chatbots IA, Webs y Apps):* Se trabaja con el *50% de adelanto* del precio del servicio para iniciar y *50% contra entrega*.
-• *Impulso en Redes Sociales (desde S/ 10):* *Pago 100% adelantado* para activar tu pedido al instante.`;
+• CCI: 00972420833061365561`;
 
 const DIGITAL_MYK_SOCIAL_CATALOG = `CATALOGO OFICIAL CRECIMIENTO REDES SOCIALES (Pedidos desde S/ 10 por transaccion; los tramos economicos de S/ 5 o S/ 6 se combinan entre si en el mismo enlace o distintos para alcanzar el minimo de S/ 10):
 
@@ -1922,12 +1918,12 @@ CUENTAS OFICIALES PARA DEPÓSITOS (Titular: Maycol Castañeda):
 - Banco de la Nación: Cuenta 04765342509 | CCI 018-765-004765342509-81
 - Scotiabank (Cuenta Ahorro Soles): Cuenta 8330613655 | CCI 00972420833061365561
 
-MODALIDAD DE PAGO OBLIGATORIA AL COTIZAR O ENVIAR CUENTAS:
+MODALIDAD DE PAGO OBLIGATORIA SOLO AL COTIZAR PRECIOS (no la incluyas cuando solo pidan los números de cuenta):
 - Desarrollo de Software (Chatbots IA, Webs PRO, Apps a la Medida, Oferta IA + Web Gratis): Se trabaja con el *50% de adelanto* del precio del servicio para iniciar el desarrollo y el *50% restante contra entrega*.
 - Impulso en Redes Sociales (TikTok, Instagram, Facebook, YouTube): Es *pago 100% adelantado* para activar el pedido de inmediato (NO aplica 50%).
 
 REGLAS ESTRICTAS:
-1. Tono ejecutivo, serio, cercano y ordenado. Guía paso a paso (servicio -> precio claro + modalidad de pago -> cuenta de pago -> activación).
+1. Tono ejecutivo, serio, cercano y ordenado. Guía paso a paso (servicio -> precio claro + modalidad al cotizar -> cuenta de pago -> activación).
 2. ${isFirstMessage ? 'Es el primer mensaje del cliente: preséntate brevemente.' : 'Ya respondiste anteriormente en este chat: NO incluyas encabezado de bienvenida ni repitas "Hola, bienvenido a Digital MYK Lab"; ve directo al punto.'}
 3. Si preguntan precios o cotizaciones de Chatbot, Web, App o IA+Web Gratis, da los precios exactos arriba indicados en Soles, aclara que se trabaja con el *50% de adelanto para iniciar y 50% contra entrega*, y resalta que incluye servidores cloud de alto rendimiento con Certificado SSL incluido (sin mencionar GitHub ni Render).
 4. Para Redes Sociales: enfatiza que desde S/ 10 pueden elegir paquete o armar un Pack Inicio combinando likes + vistas, indica siempre que es *pago 100% adelantado* para activarlo al instante, y solicita el link del perfil o video.
