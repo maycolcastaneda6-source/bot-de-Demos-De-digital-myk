@@ -1379,9 +1379,9 @@ function buildProButtonResponse(
     const opLine = receiptInfo?.operationCode ? `\n🔢 *N° Operación:* ${receiptInfo.operationCode}` : "";
 
     return {
-      reply: `✅ *¡Comprobante recibido con éxito${greetingName}!*\n\n🏦 *Método de pago reconocido:* ${recognizedMethod}${amountLine}${opLine}\n📌 *Estado en sistema:* Por Verificar\n\nNuestro director de proyectos (*Maycol Castañeda*) validará el abono en minutos.\n\n🚀 *Paso final para activar hoy mismo:* escríbenos por aquí:\n• Si es *Chatbot / Web / App*: el *nombre de tu negocio y rubro*.\n• Si es *Redes Sociales*: el *link (enlace)* de tu perfil o video.\n\n👇 *Responde con el número (1, 2 o 3):*\n1️⃣ Hablar con Asesor (Maycol)\n2️⃣ Ver Más Servicios\n3️⃣ Ver Cuentas Oficiales`,
+      reply: `✅ *¡Comprobante recibido con éxito${greetingName}!*\n\n🏦 *Método de pago reconocido:* ${recognizedMethod}${amountLine}${opLine}\n📌 *Estado en sistema:* Por Verificar\n\nNuestro equipo de proyectos validará el abono en minutos.\n\n🚀 *Paso final para activar hoy mismo:* escríbenos por aquí:\n• Si es *Chatbot / Web / App*: el *nombre de tu negocio y rubro*.\n• Si es *Redes Sociales*: el *link (enlace)* de tu perfil o video.\n\n👇 *Responde con el número (1, 2 o 3):*\n1️⃣ Hablar con Asesor Directo\n2️⃣ Ver Más Servicios\n3️⃣ Ver Cuentas Oficiales`,
       buttons: [
-        { buttonId: "btn_advisor", buttonText: "👨‍💻 Hablar con Maycol" },
+        { buttonId: "btn_advisor", buttonText: "👨‍💻 Hablar con Asesor" },
         { buttonId: "btn_services", buttonText: "💼 Ver Servicios" },
         { buttonId: "btn_pay", buttonText: "💳 Ver Cuentas" }
       ],
@@ -1397,7 +1397,7 @@ function buildProButtonResponse(
       reply: `💳 *Medios de Pago Oficiales — Digital MYK Lab*\n\n${DIGITAL_MYK_PAYMENT_DETAILS}\n\n📸 *Paso siguiente:* Al realizar tu depósito, *envía la captura o foto del comprobante por este chat* (reconocemos automáticamente si pagaste por Yape, Plin, BN o Scotiabank).\n\n👇 *Responde con el número (1, 2 o 3):*\n1️⃣ Ya realicé el pago (Confirmar)\n2️⃣ Hablar con Asesor Directo\n3️⃣ Volver al Menú de Servicios`,
       buttons: [
         { buttonId: "btn_voucher", buttonText: "✅ Ya realicé el pago" },
-        { buttonId: "btn_advisor", buttonText: "👨‍💻 Hablar con Maycol" },
+        { buttonId: "btn_advisor", buttonText: "👨‍💻 Asesor Directo" },
         { buttonId: "btn_services", buttonText: "💼 Ver Servicios" }
       ],
       stageOverride: "💳 Pago / Cierre"
@@ -1406,7 +1406,7 @@ function buildProButtonResponse(
 
   if (action === "btn_advisor") {
     return {
-      reply: `👨‍💻 *Atención Directa Asignada*${greetingName} ✅\n\nTu requerimiento ya está registrado para atención prioritaria con *Maycol Castañeda — Digital MYK Lab*.\n\nCuéntanos en un mensaje breve:\n• Qué servicio te interesa y qué deseas lograr (o envía tu enlace si es Redes Sociales).\n\n🌐 Web Oficial: https://digitalmyklab.onrender.com/\n✉️ Correo: compumasster@gmail.com\n\n👇 *Responde con el número (1, 2 o 3):*\n1️⃣ Ver Cuentas / Yape y Plin\n2️⃣ Ver Oferta IA + Web (S/ 390)\n3️⃣ Ver Todos los Servicios`,
+      reply: `👨‍💻 *Atención Directa Asignada*${greetingName} ✅\n\nTu requerimiento ya está registrado para atención prioritaria con un *Asesor de Digital MYK Lab*.\n\nCuéntanos en un mensaje breve:\n• Qué servicio te interesa y qué deseas lograr (o envía tu enlace si es Redes Sociales).\n\n🌐 Web Oficial: https://digitalmyklab.onrender.com/\n✉️ Correo: compumasster@gmail.com\n\n👇 *Responde con el número (1, 2 o 3):*\n1️⃣ Ver Cuentas / Yape y Plin\n2️⃣ Ver Oferta IA + Web (S/ 390)\n3️⃣ Ver Todos los Servicios`,
       buttons: [
         { buttonId: "btn_pay", buttonText: "💳 Medios de Pago" },
         { buttonId: "btn_combo", buttonText: "🎁 Oferta IA + Web" },
@@ -1938,7 +1938,8 @@ REGLAS ESTRICTAS:
      👇 *Responde con el número (1, 2 o 3):*
      1️⃣ Ver Medios de Pago (Yape / Plin / Bancos)
      2️⃣ Ver Oferta IA + Web Gratis (S/ 390)
-     3️⃣ Hablar con Asesor Directo (Maycol)
+     3️⃣ Hablar con Asesor Directo
+   (Importante: NO pongas nombres personales como "Maycol" en el menú ni en la asesoría; di solo "Asesor Directo").
 7. Agrega al final en línea oculta:
 [SALES_LEAD: {"clientName":"${session.name}", "serviceInterest":"...", "businessType":"...", "estimatedValue":${getDefaultEstimatedValue(detectedService)}, "stage":"💬 En Asesoría" | "📄 Cotizado" | "💳 Pago / Cierre"}]
 
